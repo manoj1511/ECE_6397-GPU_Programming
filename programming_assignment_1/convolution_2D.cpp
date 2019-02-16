@@ -51,7 +51,7 @@ int main(int argc, char* argv[])
  	size_t pixel_size = height * width * sizeof(Pixel);				// calulate the size needed to allocate
 	
 	cout<< "size to be allocated 	: " << pixel_size << endl;
-	cout << type << endl << height << endl << width << endl << range << N << endl; 	// display the headers
+	cout << type << endl << height << endl << width << endl << range << endl; 	// display the headers
 
 	Pixel *pixel = new Pixel[N];							// allocate array to store pixel values
 
@@ -73,49 +73,66 @@ int main(int argc, char* argv[])
 	
 	int k = 6 * sigma;
 	if(k%2==0) k++;
+
+	int k_half = k/2;
 	
 	float* K = (float*) malloc(k * sizeof(float));
-	for(int i = 0; i<k; i++)
+
+	for(int i=-k_half; i<=k_half; i++)
 	{
-		K[i]=coeff*exp(-((i-mu)*(i-mu)/(2*sigma*sigma)));
+		K[i]=coeff*exp(-(((i-mu)*(i-mu))/(2*sigma*sigma)));
 		cout << "k["<<i<<"]	:" << K[i]<<endl;
 	}
 
 /**************************CONVOLUTION ROW WISE*******************************/
 
-	for(int i=0; i<width-k+1; i++)							// stops at width so that ref can fill rest of image width
+float temp1, temp2, temp3;
+
+	for(int i=k_half; i<=width-k_half+1; i++)							// stops at width so that ref can fill rest of image width
 	{
+		temp1 = 0, temp2 = 0, temp3 = 0;
 		for(int j=0; j<height; j++)
 		{
-			for(int ref=0; ref<k; ref++ )
+			for(int ref=-k_half; ref<=k_half; ref++ )
 			{
-				pixel[(i+j*width)+ref].r *= K[ref];   
-				pixel[(i+j*width)+ref].g *= K[ref];   
-				pixel[(i+j*width)+ref].b *= K[ref];
-			}   
+				temp1 += K[ref] * pixel[(i+j*width)-ref].r;
+				temp2 += K[ref] * pixel[(i+j*width)-ref].g;
+				temp3 += K[ref] * pixel[(i+j*width)-ref].b;
+			}
+			
+			pixel[i+j*width].r = temp1;		   
+			pixel[i+j*width].g = temp2;		   
+			pixel[i+j*width].b = temp3;		   
 		}
 	}
-	for(int i=0; i<N; i++)
-	{
-		if(i%5 == 0) cout << endl;
-		cout << pixel[i].b << "		";
-
-		
-	}
-	cout << endl;
+//	for(int i=0; i<N; i++)
+//	{
+//		if(i%5 == 0) cout << endl;
+//		cout << pixel[i].b << "		";
+//
+//		
+//	}
+//	cout << endl;
 
 /***********************CONVOLUTION COLUMN WISE******************************/
 
+
+
 	for(int i=0; i<width; i++)		
 	{
-		for(int j=0; j<height-k+1; j++)						// stops at a hight so that ref can fill rest of image height
+		temp1 = 0; temp2 = 0 ; temp3 = 0;
+		for(int j=k_half; j<=height-k_half+1; j++)						// stops at a hight so that ref can fill rest of image height
 		{
-			for(int ref=0; ref<k; ref++ )
-			{
-				pixel[(i*width+j)+ref].r *= K[ref];   
-				pixel[(i*width+j)+ref].g *= K[ref];   
-				pixel[(i*width+j)+ref].b *= K[ref];
-			}   
+			for(int ref=-k_half; ref<=k_half; ref++ )
+			{	
+				temp1 += K[ref] * pixel[(j+i*width)-ref].r;
+				temp2 += K[ref] * pixel[(j+i*width)-ref].g;
+				temp3 += K[ref] * pixel[(j+i*width)-ref].b;
+			}
+			
+			pixel[j+i*width].r = temp1;		   
+			pixel[j+i*width].g = temp2;		   
+			pixel[j+i*width].b = temp3;		   
 		}
 	}
 	cout <<"\n----------------------------------------------------------\n";
