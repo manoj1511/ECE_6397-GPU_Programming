@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
 
 	int k_half = k/2;
 	
-	float* K = (float*) malloc(k * sizeof(float));
+	float* K = new float[k];
 
 	for(int i=-k_half; i<=k_half; i++)
 	{
@@ -84,14 +84,15 @@ int main(int argc, char* argv[])
 		cout << "k["<<i<<"]	:" << K[i]<<endl;
 	}
 
+
 /**************************CONVOLUTION ROW WISE*******************************/
 
 float temp1, temp2, temp3;
 
-	for(int i=k_half; i<=width-k_half+1; i++)							// stops at width so that ref can fill rest of image width
+	for(int j=0; j<height; j++)
 	{
 		temp1 = 0, temp2 = 0, temp3 = 0;
-		for(int j=0; j<height; j++)
+		for(int i=k_half; i<=width-k_half+1; i++)							// stops at width so that ref can fill rest of image width
 		{
 			for(int ref=-k_half; ref<=k_half; ref++ )
 			{
@@ -105,34 +106,34 @@ float temp1, temp2, temp3;
 			pixel[i+j*width].b = temp3;		   
 		}
 	}
-//	for(int i=0; i<N; i++)
-//	{
-//		if(i%5 == 0) cout << endl;
-//		cout << pixel[i].b << "		";
-//
-//		
-//	}
-//	cout << endl;
+	for(int i=0; i<N; i++)
+	{
+		if(i%5 == 0) cout << endl;
+		cout << pixel[i].b << "		";
+
+		
+	}
+	cout << endl;
 
 /***********************CONVOLUTION COLUMN WISE******************************/
 
 
 
-	for(int i=0; i<width; i++)		
+	for(int j=k_half; j<=height-k_half+1; j++)						// stops at a hight so that ref can fill rest of image height
 	{
 		temp1 = 0; temp2 = 0 ; temp3 = 0;
-		for(int j=k_half; j<=height-k_half+1; j++)						// stops at a hight so that ref can fill rest of image height
+		for(int i=0; i<width; i++)		
 		{
 			for(int ref=-k_half; ref<=k_half; ref++ )
 			{	
-				temp1 += K[ref] * pixel[(j+i*width)-ref].r;
-				temp2 += K[ref] * pixel[(j+i*width)-ref].g;
-				temp3 += K[ref] * pixel[(j+i*width)-ref].b;
+				temp1 += K[ref] * pixel[(j+i*height)-ref].r;
+				temp2 += K[ref] * pixel[(j+i*height)-ref].g;
+				temp3 += K[ref] * pixel[(j+i*height)-ref].b;
 			}
 			
-			pixel[j+i*width].r = temp1;		   
-			pixel[j+i*width].g = temp2;		   
-			pixel[j+i*width].b = temp3;		   
+			pixel[j+i*height].r = temp1;		   
+			pixel[j+i*height].g = temp2;		   
+			pixel[j+i*height].b = temp3;		   
 		}
 	}
 	cout <<"\n----------------------------------------------------------\n";
@@ -143,7 +144,7 @@ float temp1, temp2, temp3;
 
 		
 	}
-	cout << endl;
+	cout <<"executed"<< endl;
 
 /******************************WRITE FILE*************************************/
 
@@ -157,7 +158,8 @@ float temp1, temp2, temp3;
 		wfile << (unsigned char)pixel[i].g;
 		wfile << (unsigned char)pixel[i].b;
 	}
-
+	wfile.close();
+	cout << "\n done writing" << endl;
 	delete[] pixel;
 	delete[] K;
 
