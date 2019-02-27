@@ -50,24 +50,32 @@ int main(int argc, char* argv[])
 	file >> width >> range;								// continue reading for width and range
 
 	int N = height*width;	
- 	size_t pixel_size = height * width * sizeof(Pixel);				// calulate the size needed to allocate
+
 	
-	cout<< "size to be allocated 	: " << pixel_size << endl;
 	cout << type << endl << height << endl << width << endl << range << endl; 	// display the headers
 
-	Pixel *pixel_in = new Pixel[N];							// allocate array to store pixel input values
-	Pixel *pixel_mid = new Pixel[N];						// allocate array to store pixel output values
-	Pixel *pixel_out = new Pixel[N];						// allocate array to store pixel output values
 	
-	unsigned char temp;			
-	for(int i=0; i<N; i++)
+
+ 	size_t buffer_size = 3 * height * width * sizeof(unsigned char) + 1;		// calulate the size needed to allocate
+        unsigned char *buffer = new unsigned char[buffer_size];
+
+        file.read((char *)buffer, N*3+1);
+        file.close();
+
+	size_t pixel_size = height * width * sizeof(Pixel) + 1;
+
+	Pixel *pixel_in = new Pixel[pixel_size];
+	Pixel *pixel_mid = new Pixel[pixel_size];
+	Pixel *pixel_out = new Pixel[pixel_size];
+
+
+	for (int i=0; i<N; i++)
 	{
-		file >> temp; pixel_in[i].r = temp;					// read pixel values from file one by one and convert into float
-		file >> temp; pixel_in[i].g = temp; 
-		file >> temp; pixel_in[i].b = temp;
+		pixel_in[i].r = buffer[i*3+1];
+		pixel_in[i].g = buffer[i*3+2];
+		pixel_in[i].b = buffer[i*3+3];
 	}
 
-	file.close();
 
 /*****************************CREATE KERNEL***********************************/
 	
@@ -117,13 +125,13 @@ int main(int argc, char* argv[])
 
 	cout<<"\n------------------------------------------------------------------------\n";
 /**************************CONVOLUTION ROW WISE*******************************/
-/*
+
 float temp1, temp2, temp3;
 
 	for(int j=0; j<height; j++)
 	{
 
-		for(int i=0; i<=width-k; i++)							// stops at width so that ref can fill rest of image width
+		for(int i=0; i<=width-k; i++)						// stops at width so that ref can fill rest of image width
 		{
 			temp1 = 0, temp2 = 0, temp3 = 0;
 			for(int ref=0; ref<k; ref++ )
@@ -138,18 +146,18 @@ float temp1, temp2, temp3;
 			pixel_mid[i+j*width].b = temp3;		   
 		}
 	}
-
+/*
 	cout<<"\n**************************CONVOLUTION ROW WISE*******************************\n";
 
 	for(int i=0; i<N; i++)
 	{
 		if(i%20 == 0) cout << endl;
-		cout<<fixed <<setprecision(2)<< pixel_mid[i].b << "	";	
+		cout<<fixed <<setprecision(2)<<  pixel_mid[i].r << "  "<< pixel_mid[i].g << "  "<< pixel_mid[i].b << "  ";	
 	}
 	cout << endl;
 */
 /***********************CONVOLUTION COLUMN WISE******************************/
-/*
+
 	for(int j=0; j<=height-k; j++)						// stops at a hight so that ref can fill rest of image height
 	{
 
@@ -169,31 +177,49 @@ float temp1, temp2, temp3;
 		}
 	}
 
+/*
 	cout<<"\n***********************CONVOLUTION COLUMN WISE******************************\n";
 
 	for(int i=0; i<N; i++)
 	{
 		if(i%20 == 0) cout << endl;
-		cout <<setprecision(2)<< pixel_out[i].b << "	";
+		cout <<setprecision(2)<< pixel_out[i].r << "  "<<pixel_out[i].g << "  "<<pixel_out[i].b << "  ";
 	}
+	cout << endl;
 */
 /******************************WRITE FILE*************************************/
+
+
 
 	ofstream wfile("output_image.ppm", ios::binary);
  	wfile << type << endl;
  	wfile << height << " " << width << endl  << range << endl;
 
-	for (int i = 0; i < N; i++) 
+        unsigned char *out_buffer = new unsigned char[buffer_size];
+	
+	
+	for(int i = 0; i < N; i++)
 	{
-		wfile << (unsigned char)pixel_in[i].r;
-		wfile << (unsigned char)pixel_in[i].g;
-		wfile << (unsigned char)pixel_in[i].b;
+		out_buffer[i*3+0] = (unsigned char)pixel_out[i].r;
+		out_buffer[i*3+1] = (unsigned char)pixel_out[i].g;
+		out_buffer[i*3+2] = (unsigned char)pixel_out[i].b;
 	}
+/*
+	for(int i=0; i<N*3; i++)
+	{
+		if(i%(3*20) == 0) cout << endl;
+		cout <<setprecision(2)<< (int)out_buffer[i] << "   ";
+	}
+	cout << endl;
+
+*/
+
+	wfile.write(reinterpret_cast<char *>(&out_buffer[0]), N*3);
 	wfile.close();
 
 
 	cout << "\n done writing" << endl;
-	delete[] pixel_in, pixel_mid, pixel_out;
+	delete[] pixel_in, pixel_mid, pixel_out, buffer, out_buffer;
 	delete[] K;
 
 	return 0;
