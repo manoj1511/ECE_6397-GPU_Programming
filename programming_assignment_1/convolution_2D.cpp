@@ -5,6 +5,7 @@
 #include <cmath>
 #include <iomanip>
 #include <cstring>
+#include <chrono>
 
 #define mu 0
 #define pi 3.141
@@ -114,7 +115,7 @@ int main(int argc, char* argv[])
 	
 	}
 	
-	cout<<"\nSUM2	: "<<sum2;
+	cout<<"\nSUM2	: "<< sum2<<endl;
 /*
 	for(int i=0; i<N; i++)
 	{
@@ -128,8 +129,11 @@ int main(int argc, char* argv[])
 	cout<<"\n------------------------------------------------------------------------\n";
 */
 /**************************CONVOLUTION ROW WISE*******************************/
+	chrono::high_resolution_clock::time_point start,stop;
 
-float temp1, temp2, temp3;
+	start = chrono::high_resolution_clock::now();
+
+	float temp1, temp2, temp3;
 
 	for(int j=0; j<height; j++)
 	{
@@ -161,7 +165,7 @@ float temp1, temp2, temp3;
 */
 /***********************CONVOLUTION COLUMN WISE******************************/
 
-	memset(pixel_out, 0, height*width*sizeof(Pixel));
+//	memset(pixel_out, 0, height*width*sizeof(Pixel));
 	for(int j=0; j<=height-k; j++)						// stops at a hight so that ref can fill rest of image height
 	{
 
@@ -180,6 +184,12 @@ float temp1, temp2, temp3;
 			pixel_out[i+j*width].b = temp3;		   
 		}
 	}
+
+	stop = chrono::high_resolution_clock::now();
+	chrono::milliseconds d;
+	d = chrono::duration_cast<chrono::milliseconds>(stop - start);
+
+	cout << "time taken	: "<<d.count()<<" ms"<<endl;
 
 /*
 	cout<<"\n***********************CONVOLUTION COLUMN WISE******************************\n";
