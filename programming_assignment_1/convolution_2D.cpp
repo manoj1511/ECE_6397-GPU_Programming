@@ -17,8 +17,8 @@ int main(int argc, char* argv[])
 {
 	if(argc !=3)									//Checking if there are 3 arguments
 	{
-		cout<<"Please enter 3 arguments";					//returns this message if 3 arguments not present
-		cout<<"USAGE:./executable image_file_name.ppm kernal_size ";		
+		cout<<"Please enter 3 arguments"<<endl;					//returns this message if 3 arguments not present
+		cout<<"USAGE:./executable image_file_name.ppm kernal_size "<<endl;		
 		return 1;
 	}
 
