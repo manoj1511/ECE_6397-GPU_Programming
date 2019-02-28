@@ -4,6 +4,7 @@
 #include <fstream>
 #include <cmath>
 #include <iomanip>
+#include <cstring>
 
 #define mu 0
 #define pi 3.141
@@ -46,13 +47,13 @@ int main(int argc, char* argv[])
 	
 	int height,width,range;
 
-	height = stoi(comment);								// value after comment store it in height
-	file >> width >> range;								// continue reading for width and range
+	width = stoi(comment);								// value after comment store it in height
+	file >> height >> range;								// continue reading for width and range
 
 	int N = height*width;	
 
 	
-	cout << type << endl << height << endl << width << endl << range << endl; 	// display the headers
+	cout << type << endl << "height: "<<height << endl << "width: "<<width << endl << range << endl; 	// display the headers
 
 	
 
@@ -75,12 +76,13 @@ int main(int argc, char* argv[])
 		pixel_in[i].g = buffer[i*3+2];
 		pixel_in[i].b = buffer[i*3+3];
 	}
-
+	
+	delete[] buffer;
 
 /*****************************CREATE KERNEL***********************************/
 	
 	coeff = 1/sqrt(2*sigma*sigma*pi);
-	cout << "coefficient is :" << coeff<<endl;
+	cout << "coefficient is : " << coeff<<endl;
 	
 	int k = 6 * sigma;
 	if(k%2==0) k++;
@@ -113,7 +115,7 @@ int main(int argc, char* argv[])
 	}
 	
 	cout<<"\nSUM2	: "<<sum2;
-
+/*
 	for(int i=0; i<N; i++)
 	{
 		if(i==400) break;
@@ -124,6 +126,7 @@ int main(int argc, char* argv[])
 	cout << endl;
 
 	cout<<"\n------------------------------------------------------------------------\n";
+*/
 /**************************CONVOLUTION ROW WISE*******************************/
 
 float temp1, temp2, temp3;
@@ -158,6 +161,7 @@ float temp1, temp2, temp3;
 */
 /***********************CONVOLUTION COLUMN WISE******************************/
 
+	memset(pixel_out, 0, height*width*sizeof(Pixel));
 	for(int j=0; j<=height-k; j++)						// stops at a hight so that ref can fill rest of image height
 	{
 
@@ -191,12 +195,11 @@ float temp1, temp2, temp3;
 
 
 
-	ofstream wfile("output_image.ppm", ios::binary);
+	ofstream wfile("yaxis_512.ppm", ios::binary);
  	wfile << type << endl;
- 	wfile << height << " " << width << endl  << range << endl;
+ 	wfile << width << " " << height << endl  << range << endl;
 
         unsigned char *out_buffer = new unsigned char[buffer_size];
-	
 	
 	for(int i = 0; i < N; i++)
 	{
@@ -219,7 +222,7 @@ float temp1, temp2, temp3;
 
 
 	cout << "\n done writing" << endl;
-	delete[] pixel_in, pixel_mid, pixel_out, buffer, out_buffer;
+	delete[] pixel_in, pixel_mid, pixel_out, out_buffer;
 	delete[] K;
 
 	return 0;
