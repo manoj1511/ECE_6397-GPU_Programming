@@ -195,7 +195,7 @@ float temp1, temp2, temp3;
 
 
 
-	ofstream wfile("yaxis_512.ppm", ios::binary);
+	ofstream wfile("output_image.ppm", ios::binary);
  	wfile << type << endl;
  	wfile << width << " " << height << endl  << range << endl;
 
