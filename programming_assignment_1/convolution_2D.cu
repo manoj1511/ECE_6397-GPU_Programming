@@ -24,7 +24,7 @@ struct Pixel {float r, g, b; };
 
 //__global__ struct __align__(16) Pixel_gpu{float r, g, b; };
 
-__global__ void convolution_gpu(Pixel *in, Pixel *mid, Pixel *out, float *K, int width, int height, int k, int N)
+__global__ void convolution_gpu_x(const Pixel *in, Pixel *mid, Pixel *out, const float *K, const int width, const int height, const int k, const int N)
 {
 
 	int indx = threadIdx.x + blockIdx.x * blockDim.x;
@@ -34,7 +34,7 @@ __global__ void convolution_gpu(Pixel *in, Pixel *mid, Pixel *out, float *K, int
 
 	if(indx < N && indx <= ((row*width)-k))
 	{
-		float temp1, temp2, temp3;
+		float temp1=0, temp2=0, temp3=0;
 		for(int ref = 0; ref<k; ref++)		
 		{
 			temp1 += K[ref] * in[indx+ref].r;
@@ -45,11 +45,11 @@ __global__ void convolution_gpu(Pixel *in, Pixel *mid, Pixel *out, float *K, int
 		mid[indx].g = temp2;
 		mid[indx].b = temp3;
 	}
-	__syncthreads();
+/*
 
-	if(indx < N-((k-1)*width) && indx <= ((row*width)-k))
+	if(indx < N-((k-1)*width)) //&& indx <= ((row*width)-k))
 	{
-		float temp1, temp2, temp3;
+		float temp1=0, temp2=0, temp3=0;
 		for(int ref = 0; ref<k; ref++)
 		{
 			temp1 += K[ref] * mid[indx+(ref*width)].r;
@@ -60,8 +60,50 @@ __global__ void convolution_gpu(Pixel *in, Pixel *mid, Pixel *out, float *K, int
 		out[indx].g = temp2;
 		out[indx].b = temp3;
 	}
+*/
+
 }
 
+__global__ void convolution_gpu_y(const Pixel *in, Pixel *mid, Pixel *out, const float *K, const int width, const int height, const int k, const int N)
+{
+
+	int indx = threadIdx.x + blockIdx.x * blockDim.x;
+
+	int row = indx / width;
+	row++;
+/*
+	if(indx < N && indx <= ((row*width)-k))
+	{
+		float temp1=0, temp2=0, temp3=0;
+		for(int ref = 0; ref<k; ref++)		
+		{
+			temp1 += K[ref] * in[indx+ref].r;
+			temp2 += K[ref] * in[indx+ref].g;
+			temp3 += K[ref] * in[indx+ref].b;
+		}
+		mid[indx].r = temp1;
+		mid[indx].g = temp2;
+		mid[indx].b = temp3;
+	}
+
+	__syncthreads();
+*/
+	if(indx < N-((k-1)*width) && indx <= ((row*width)-k))
+	{
+		float temp1=0, temp2=0, temp3=0;
+		for(int ref = 0; ref<k; ref++)
+		{
+			temp1 += K[ref] * mid[indx+(ref*width)].r;
+			temp2 += K[ref] * mid[indx+(ref*width)].g;
+			temp3 += K[ref] * mid[indx+(ref*width)].b;
+		}
+		out[indx].r = temp1;
+		out[indx].g = temp2;
+		out[indx].b = temp3;
+	}
+
+
+}
 
 int main(int argc, char* argv[])
 {
@@ -103,10 +145,10 @@ int main(int argc, char* argv[])
 	int N = height*width;							// N to store total number of pixels availanle
 	
 	cout << "Type 		: " << type   << endl; 		// display the headers
-	cout << "height 	: " << height << endl; 
+	cout << "height 		: " << height << endl; 
 	cout << "width 		: " << width  << endl; 
 	cout << "range 		: " << range  << endl; 	
-
+	cout << "N		: " << N      << endl;
  	size_t buffer_size = 3 * height * width * sizeof(unsigned char) + 1;		// calulate the size needed to allocate
   	unsigned char *buffer = new unsigned char[buffer_size];
 
@@ -276,7 +318,7 @@ int main(int argc, char* argv[])
 	wfile.close();
 
 
-	cout << "\n done writing" << endl;
+	cout << "\ndone writing cpu image" << endl << endl;
 
 	delete[] out_buffer;
 
@@ -284,7 +326,6 @@ int main(int argc, char* argv[])
 
  	cudaDeviceProp prop;
  	cudaGetDeviceProperties(&prop,0);
-  	
 
  	Pixel *pixel_gpu_in, *pixel_gpu_mid, *pixel_gpu_out;
 	float *K_gpu;
@@ -309,28 +350,36 @@ int main(int argc, char* argv[])
   
   	cout << "blockDim : " << blockDim << endl;
   	cout << "gridDim  : " << gridDim  << endl;
+	cout << "Num threads : "<< blockDim * gridDim <<endl;
+	
+	cudaEvent_t begin, end;
 
-  	convolution_gpu<<<gridDim, blockDim>>>(pixel_gpu_in, pixel_gpu_mid, pixel_gpu_out, K_gpu, width, height, k, N);
-/*
-  	HANDLE_ERROR(cudaMemcpy(pixel_in, pixel_gpu_in, pixel_size, cudaMemcpyDeviceToHost));
+	cudaEventCreate(&begin);
+	cudaEventCreate(&end);
+	
+	cudaEventRecord(begin);
+  	convolution_gpu_x<<<gridDim, blockDim>>>(pixel_gpu_in, pixel_gpu_mid, pixel_gpu_out, K_gpu, width, height, k, N);
 
-	for(int i=0; i<N; i++)
+  	HANDLE_ERROR(cudaMemcpy(pixel_mid, pixel_gpu_mid, pixel_size, cudaMemcpyDeviceToHost));
+
+  	convolution_gpu_y<<<gridDim, blockDim>>>(pixel_gpu_in, pixel_gpu_mid, pixel_gpu_out, K_gpu, width, height, k, N);
+	cudaEventRecord(end);
+
+	cudaEventSynchronize(end);
+	float milliseconds = 0;
+ 	cudaEventElapsedTime(&milliseconds, begin, end);
+
+	cout << "gpu time taken		:" << milliseconds <<" ms" << endl;
+
+  	HANDLE_ERROR(cudaMemcpy(pixel_out, pixel_gpu_out, pixel_size, cudaMemcpyDeviceToHost));
+
+/*	for(int i=0; i<N; i++)
 	{
 		if(i%(20) == 0) cout << endl;
 		cout << pixel_out[i].b << "   ";
 	}
 	cout << endl;
 */
-	cudaDeviceSynchronize();	
-
-  	HANDLE_ERROR(cudaMemcpy(pixel_out, pixel_gpu_out, pixel_size, cudaMemcpyDeviceToHost));
-	for(int i=0; i<N; i++)
-	{
-		if(i%(20) == 0) cout << endl;
-		cout << pixel_out[i].b << "   ";
-	}
-	cout << endl;
-
 
 /******************************WRITE FILE*************************************/
 
@@ -346,19 +395,19 @@ int main(int argc, char* argv[])
 		gpu_buffer[i*3+1] = (unsigned char)pixel_out[i].g;
 		gpu_buffer[i*3+2] = (unsigned char)pixel_out[i].b;
 	}
-
+/*
 	for(int i=0; i<N*3; i++)
 	{
 		if(i%(3*20) == 0) cout << endl;
 		cout << (float)gpu_buffer[i] << "   ";
 	}
 	cout << endl;
-
+*/
 	gfile.write(reinterpret_cast<char *>(&gpu_buffer[0]), N*3);
 	gfile.close();
 
 
-	cout << "\n done writing" << endl;
+	cout << "\ndone writing gpu image" << endl;
 
 
 	delete[] pixel_in, pixel_mid, pixel_out, gpu_buffer;
