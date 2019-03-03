@@ -24,19 +24,42 @@ struct Pixel {float r, g, b; };
 
 //__global__ struct __align__(16) Pixel_gpu{float r, g, b; };
 
-__global__ void convolution_gpu(Pixel *in, Pixel *mid, Pixel *out, float *K, int N)
+__global__ void convolution_gpu(Pixel *in, Pixel *mid, Pixel *out, float *K, int width, int height, int k, int N)
 {
 
 	int indx = threadIdx.x + blockIdx.x * blockDim.x;
 
-	if(indx >= N) return;
-	
-	out[indx].r = in[indx].r;
-	out[indx].g = in[indx].g;
-	out[indx].b = in[indx].b;
-	
+	int row = indx / width;
+	row++;
+
+	if(indx < N && indx <= ((row*width)-k))
+	{
+		float temp1, temp2, temp3;
+		for(int ref = 0; ref<k; ref++)		
+		{
+			temp1 += K[ref] * in[indx+ref].r;
+			temp2 += K[ref] * in[indx+ref].g;
+			temp3 += K[ref] * in[indx+ref].b;
+		}
+		mid[indx].r = temp1;
+		mid[indx].g = temp2;
+		mid[indx].b = temp3;
+	}
 	__syncthreads();
 
+	if(indx < N-((k-1)*width) && indx <= ((row*width)-k))
+	{
+		float temp1, temp2, temp3;
+		for(int ref = 0; ref<k; ref++)
+		{
+			temp1 += K[ref] * mid[indx+(ref*width)].r;
+			temp2 += K[ref] * mid[indx+(ref*width)].g;
+			temp3 += K[ref] * mid[indx+(ref*width)].b;
+		}
+		out[indx].r = temp1;
+		out[indx].g = temp2;
+		out[indx].b = temp3;
+	}
 }
 
 
@@ -287,7 +310,7 @@ int main(int argc, char* argv[])
   	cout << "blockDim : " << blockDim << endl;
   	cout << "gridDim  : " << gridDim  << endl;
 
-  	convolution_gpu<<<gridDim, blockDim>>>(pixel_gpu_in, pixel_gpu_mid, pixel_gpu_out, K_gpu, N);
+  	convolution_gpu<<<gridDim, blockDim>>>(pixel_gpu_in, pixel_gpu_mid, pixel_gpu_out, K_gpu, width, height, k, N);
 /*
   	HANDLE_ERROR(cudaMemcpy(pixel_in, pixel_gpu_in, pixel_size, cudaMemcpyDeviceToHost));
 
@@ -301,13 +324,13 @@ int main(int argc, char* argv[])
 	cudaDeviceSynchronize();	
 
   	HANDLE_ERROR(cudaMemcpy(pixel_out, pixel_gpu_out, pixel_size, cudaMemcpyDeviceToHost));
-/*	for(int i=0; i<N; i++)
+	for(int i=0; i<N; i++)
 	{
 		if(i%(20) == 0) cout << endl;
 		cout << pixel_out[i].b << "   ";
 	}
 	cout << endl;
-*/
+
 
 /******************************WRITE FILE*************************************/
 
@@ -327,10 +350,9 @@ int main(int argc, char* argv[])
 	for(int i=0; i<N*3; i++)
 	{
 		if(i%(3*20) == 0) cout << endl;
-		cout <<setprecision(2)<< (int)gpu_buffer[i] << "   ";
+		cout << (float)gpu_buffer[i] << "   ";
 	}
 	cout << endl;
-
 
 	gfile.write(reinterpret_cast<char *>(&gpu_buffer[0]), N*3);
 	gfile.close();
