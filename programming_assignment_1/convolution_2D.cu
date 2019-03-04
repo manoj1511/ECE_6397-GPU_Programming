@@ -35,9 +35,10 @@ __global__ void convolution_gpu_x(const Pixel *in, Pixel *mid, const float *K, c
 		float temp1=0, temp2=0, temp3=0;					// declare temps
 		for(int ref = 0; ref<k; ref++)						// loop through ref for K
 		{
-			temp1 += K[ref] * in[indx+ref].r;				// cal K[0]*in[0] + K[1]*in[1] ... and so on
-			temp2 += K[ref] * in[indx+ref].g;				// do for r, g and b
-			temp3 += K[ref] * in[indx+ref].b;				// store in temp variables
+			int findx = indx + ref;
+			temp1 += K[ref] * in[findx].r;					// cal K[0]*in[0] + K[1]*in[1] ... and so on
+			temp2 += K[ref] * in[findx].g;					// do for r, g and b
+			temp3 += K[ref] * in[findx].b;					// store in temp variables
 		}
 		mid[indx].r = temp1;							// put it in indermidiate image
 		mid[indx].g = temp2;
@@ -91,9 +92,10 @@ __global__ void convolution_gpu_y(const Pixel *mid, Pixel *out, const float *K, 
 		float temp1=0, temp2=0, temp3=0;					// declare temps
 		for(int ref = 0; ref<k; ref++)						// loop to loop through K and mid image columns
 		{
-			temp1 += K[ref] * mid[indx+(ref*width)].r;			// calc K[0]*mid[0] + K[1]*mid[1] + ... so on 
-			temp2 += K[ref] * mid[indx+(ref*width)].g;			// mid is indexed column wise
-			temp3 += K[ref] * mid[indx+(ref*width)].b;			// if width is 5 it will go like mid[0], mid[5], mid[10] 
+			int findx = indx + (ref*width);
+			temp1 += K[ref] * mid[findx].r;					// calc K[0]*mid[0] + K[1]*mid[1] + ... so on 
+			temp2 += K[ref] * mid[findx].g;					// mid is indexed column wise
+			temp3 += K[ref] * mid[findx].b;					// if width is 5 it will go like mid[0], mid[5], mid[10] 
 		}
 		out[indx].r = temp1;							// store back the temps to output
 		out[indx].g = temp2;
@@ -325,7 +327,7 @@ int main(int argc, char* argv[])
 /******************************GPU KERNAL*************************************/
 
  	cudaDeviceProp prop;
- 	cudaGetDeviceProperties(&prop,0);						// store the gpu properties in prop
+ 	HANDLE_ERROR(cudaGetDeviceProperties(&prop,0));					// store the gpu properties in prop
 
  	Pixel *pixel_gpu_in, *pixel_gpu_mid, *pixel_gpu_out;				// declare gpu pointers
 	float *K_gpu;
@@ -378,7 +380,7 @@ int main(int argc, char* argv[])
 
 	float speedup = (float)cpu_time.count() / (float)gpu_time;
 	cout <<"*********************************************************" << endl;
-	cout <<"Speed up of GPU over CPU 	: " << speedup << " times" << endl; 		// display the speedup
+	cout <<"Speed up of GPU over CPU 	: " << speedup << " times" << endl; 	// display the speedup
 	cout <<"*********************************************************" << endl;
 
   	HANDLE_ERROR(cudaMemcpy(pixel_out, pixel_gpu_out, pixel_size, cudaMemcpyDeviceToHost));		// copy back the final output
