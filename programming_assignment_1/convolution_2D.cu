@@ -266,10 +266,10 @@ int main(int argc, char* argv[])
 
 	stop = chrono::high_resolution_clock::now();					// record the stop point
 
-	chrono::milliseconds d;								// declare d to store time in milliseconds	
-	d = chrono::duration_cast<chrono::milliseconds>(stop - start);			// calculate stop - start gives the time taken
+	chrono::milliseconds cpu_time;							// declare d to store time in milliseconds	
+	cpu_time = chrono::duration_cast<chrono::milliseconds>(stop - start);		// calculate stop - start gives the time taken
 
-	cout << "cpu time taken		: " << d.count() << " ms" << endl;		// display the time in ms			
+	cout << "cpu time taken		: " << cpu_time.count() << " ms" << endl;	// display the time in ms			
 
 /*
 
@@ -366,10 +366,15 @@ int main(int argc, char* argv[])
 	cudaEventRecord(end);								// send the stop event to stream
 	cudaEventSynchronize(end);							// wait till end occurs
 
-	float milliseconds = 0;								// declare a variable to store time in milliseconds
- 	cudaEventElapsedTime(&milliseconds, begin, end);				// store the time
+	float gpu_time = 0;								// declare a variable to store time in milliseconds
+ 	cudaEventElapsedTime(&gpu_time, begin, end);					// store the time
 
-	cout << "gpu time taken		:" << milliseconds <<" ms" << endl;		// output the time
+	cout << "gpu time taken		:" << gpu_time <<" ms" << endl << endl;			// output the time
+
+	float speedup = (float)cpu_time.count() / (float)gpu_time;
+	cout <<"*********************************************************" << endl;
+	cout << "Speed up of GPU over CPU 	: " << speedup << " times" << endl; 		// display the speedup
+	cout <<"*********************************************************" << endl;
 
   	HANDLE_ERROR(cudaMemcpy(pixel_out, pixel_gpu_out, pixel_size, cudaMemcpyDeviceToHost));		// copy back the final output
 
