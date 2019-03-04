@@ -248,7 +248,7 @@ int main(int argc, char* argv[])
 
 	for(int j=0; j<=height-k; j++)							// stops at a hight so that ref can fill rest of image height
 	{
-		for(int i=0; i<width; i++)						// loop through entire width which is not necessary waste of compution		
+		for(int i=0; i<=width-k; i++)						// loop through width. dont loop at the end k-1.
 		{
 			temp1 = 0; temp2 = 0 ; temp3 = 0;				// inialize the temps to 0 after each width loop
 			for(int ref=0; ref<k; ref++ )
@@ -369,7 +369,7 @@ int main(int argc, char* argv[])
 	float gpu_time = 0;								// declare a variable to store time in milliseconds
  	cudaEventElapsedTime(&gpu_time, begin, end);					// store the time
 
-	cout << "gpu time taken		:" << gpu_time <<" ms" << endl << endl;			// output the time
+	cout << "gpu time taken		:" << gpu_time <<" ms		includes one data copy back to the host" << endl << endl; // output gpu time
 
 	float speedup = (float)cpu_time.count() / (float)gpu_time;
 	cout <<"*********************************************************" << endl;
