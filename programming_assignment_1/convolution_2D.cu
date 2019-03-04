@@ -216,19 +216,21 @@ int main(int argc, char* argv[])
 
 	for(int j=0; j<height; j++)							// loop till the end height					
 	{
+		int ofset = j*width;
 		for(int i=0; i<=width-k; i++)						// stops at width so that ref can fill rest of image width
 		{
+			int indx = i+ofset;
 			temp1 = 0, temp2 = 0, temp3 = 0;				// inialize the temps to 0 after each width loop
 			for(int ref=0; ref<k; ref++ )
 			{
-				temp1 += K[ref] * pixel_in[(i+j*width)+ref].r;		// calc K[0] * input[0] + K[1] * input[1] ... and so on
-				temp2 += K[ref] * pixel_in[(i+j*width)+ref].g;		// do it for r, g and b
-				temp3 += K[ref] * pixel_in[(i+j*width)+ref].b;		// and store in temp variables
+				int findx = indx + ref;					// findx gives [(i+j*width)+ref]
+				temp1 += K[ref] * pixel_in[findx].r;			// calc K[0] * input[0] + K[1] * input[1] ... and so on
+				temp2 += K[ref] * pixel_in[findx].g;			// do it for r, g and b
+				temp3 += K[ref] * pixel_in[findx].b;			// and store in temp variables
 			}
-			
-			pixel_mid[i+j*width].r = temp1;		   			// copy the values to the intermediate image.
-			pixel_mid[i+j*width].g = temp2;		   
-			pixel_mid[i+j*width].b = temp3;		   
+			pixel_mid[indx].r = temp1;		   			// copy the values to the intermediate image.
+			pixel_mid[indx].g = temp2;		   
+			pixel_mid[indx].b = temp3;		   
 		}
 	}
  
@@ -248,19 +250,22 @@ int main(int argc, char* argv[])
 
 	for(int j=0; j<=height-k; j++)							// stops at a hight so that ref can fill rest of image height
 	{
+		int ofset = j*width;
 		for(int i=0; i<=width-k; i++)						// loop through width. dont loop at the end k-1.
 		{
+			int indx = i+ofset;
 			temp1 = 0; temp2 = 0 ; temp3 = 0;				// inialize the temps to 0 after each width loop
 			for(int ref=0; ref<k; ref++ )
 			{	
-				temp1 += K[ref] * pixel_mid[(i+j*width)+(ref*width)].r; // cal K[0] * mid[0] + K[1] * mid[1] + .. so on
-				temp2 += K[ref] * pixel_mid[(i+j*width)+(ref*width)].g; // mid[0], mid[1], mid[2] .. is all along column wise
-				temp3 += K[ref] * pixel_mid[(i+j*width)+(ref*width)].b; // if width is 5 the indexing is like mid[0], mid[5], mid[10]
+				int findx = indx+(ref*width);				// findx gives [(i+j*width)+(ref*width)]
+				temp1 += K[ref] * pixel_mid[findx].r;			// cal K[0] * mid[0] + K[1] * mid[1] + .. so on
+				temp2 += K[ref] * pixel_mid[findx].g; 			// mid[0], mid[1], mid[2] .. is all along column wise
+				temp3 += K[ref] * pixel_mid[findx].b; 			// if width is 5 the indexing is like mid[0], mid[5], mid[10]
 			}
 			
-			pixel_out[i+j*width].r = temp1;					// store it to the output image   
-			pixel_out[i+j*width].g = temp2;		   
-			pixel_out[i+j*width].b = temp3;		   
+			pixel_out[indx].r = temp1;					// store it to the output image   
+			pixel_out[indx].g = temp2;		   
+			pixel_out[indx].b = temp3;		   
 		}
 	}
 
@@ -373,7 +378,7 @@ int main(int argc, char* argv[])
 
 	float speedup = (float)cpu_time.count() / (float)gpu_time;
 	cout <<"*********************************************************" << endl;
-	cout << "Speed up of GPU over CPU 	: " << speedup << " times" << endl; 		// display the speedup
+	cout <<"Speed up of GPU over CPU 	: " << speedup << " times" << endl; 		// display the speedup
 	cout <<"*********************************************************" << endl;
 
   	HANDLE_ERROR(cudaMemcpy(pixel_out, pixel_gpu_out, pixel_size, cudaMemcpyDeviceToHost));		// copy back the final output
