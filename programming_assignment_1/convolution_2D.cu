@@ -325,9 +325,9 @@ int main(int argc, char* argv[])
 	delete[] out_buffer;								// delete the buffer to free up space
 
 /******************************GPU KERNAL*************************************/
-
+	
  	cudaDeviceProp prop;
- 	HANDLE_ERROR(cudaGetDeviceProperties(&prop,0));					// store the gpu properties in prop
+	HANDLE_ERROR(cudaGetDeviceProperties(&prop,0));					// store the gpu properties in prop
 
  	Pixel *pixel_gpu_in, *pixel_gpu_mid, *pixel_gpu_out;				// declare gpu pointers
 	float *K_gpu;
@@ -376,7 +376,7 @@ int main(int argc, char* argv[])
 	float gpu_time = 0;								// declare a variable to store time in milliseconds
  	cudaEventElapsedTime(&gpu_time, begin, end);					// store the time
 
-	cout << "gpu time taken		:" << gpu_time <<" ms		includes one data copy back to the host" << endl << endl; // output gpu time
+	cout << "gpu time taken		: " << gpu_time <<" ms		includes one data copy back to the host" << endl << endl; // output gpu time
 
 	float speedup = (float)cpu_time.count() / (float)gpu_time;
 	cout <<"*********************************************************" << endl;
