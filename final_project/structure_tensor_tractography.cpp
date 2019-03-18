@@ -13,6 +13,13 @@
 using namespace std;
 using namespace cimg_library;
 
+struct matrix
+{
+	float a1, a2, a3;
+	float b1, b2, b3;
+	float c1, c2, c3;
+};
+
 int main()
 {
 
@@ -65,12 +72,13 @@ int main()
 	cout << "size of pixel : " <<pixel.size()<<endl;
 	cout << "size that has to be there : " << 511 * 511 * filenames.size()<<endl;
 
-	float h=1;
-
+	float h = 1;
+	float h2 = 4;
+	unsigned int size = pixel.size();
 /************************ partial derivate along x direction *************************/
 
-	vector<float> dx(pixel.size(),0);
-	for(int i = 0 ; i < pixel.size(); i++)
+	vector<float> dx(size,0);
+	for(int i = 0 ; i < size; i++)
 	{
 		if(i % width == 0) dx[i] = (pixel[i+1] - pixel[i])/h;
 		else if(i % width == width-1) dx[i] = (pixel[i] - pixel[i-1])/h;
@@ -79,9 +87,9 @@ int main()
 
 /************************ partial derivate along y direction *************************/
 
-	vector<float> dy(pixel.size(),0);
+	vector<float> dy(size,0);
 	int row;
-	for(int i = 0; i < pixel.size(); i++)
+	for(int i = 0; i < size; i++)
 	{	
 		row = i/width;
 		if(row % height == 0) dy[i] = (pixel[width+i] - pixel[i])/h;
@@ -91,12 +99,11 @@ int main()
 
 /************************ partial derivate along z direction *************************/
 	
-	float h2=4;
-	vector<float> dz(pixel.size(),0);
-	for(int i = 0; i < pixel.size(); i++)
+	vector<float> dz(size,0);
+	for(int i = 0; i < size; i++)
 	{
 		if(i < height*width) dz[i] = (pixel[i + (width*height)] - pixel[i])/h2;
-		else if(i >= (pixel.size() - (height*width))) dz[i] = (pixel[i] - pixel[i - (width*height)])/h2;
+		else if(i >= (size - (height*width))) dz[i] = (pixel[i] - pixel[i - (width*height)])/h2;
 		else dz[i] = (pixel[i + (width*height)] - pixel[i - (width*height)])/(2*h2);
 	}
 
@@ -105,27 +112,35 @@ int main()
 //		cout << i-(width*height) << "	: " << dx[i] << endl;
 //	for(int i = (height*width) ; i < pixel.size() ; i+=width)
 //		cout << i-(height*width) << "	: " << dy[i] << endl;
-	for(int i = height*width-1 ; i < pixel.size() ; i+=(width*height))
-		cout << i << "	: " << dz[i] << endl;
+//	for(int i = height*width-1 ; i < pixel.size() ; i+=(width*height))
+//		cout << i << "	: " << dz[i] << endl;
 
 
+/************************ Tensor field calculation *************************/
 
+	matrix init = {0,0,0,0,0,0,0,0,0};
+	vector<matrix> T(size,init);
+//	cout << "Size of T vector	: " << T.size() << endl;
+	for (int i = 0; i < size; i++)
+	{
+		T[i].a1 = dx[i] * dx[i];
+		T[i].a2 = dx[i] * dy[i];
+		T[i].a3 = dx[i] * dz[i];
+		T[i].b1 = dy[i] * dx[i];
+		T[i].b2 = dy[i] * dy[i];
+		T[i].b3 = dy[i] * dz[i];
+		T[i].c1 = dz[i] * dx[i];
+		T[i].c2 = dz[i] * dy[i];
+		T[i].c3 = dz[i] * dz[i];
+	} 	
+	int check = 0;
+	cout << T[check].a1 << " " << T[check].a2 << " " << T[check].a3 << endl;
+	cout << T[check].b1 << " " << T[check].b2 << " " << T[check].b3 << endl;
+	cout << T[check].c1 << " " << T[check].c2 << " " << T[check].c3 << endl;
 
-/*
-	dx[0] = (pixel[1] - pixel[0])/h;
-	for(int i = 1 ; i < width - 1 ; i++)
-		dx[i] = (pixel[i+1] - pixel[i-1])/(2*h);
-	dx[510] = (pixel[width-1]-pixel[width-2])/h;
-	for(int i = 0 ; i < width ; i++)
-		cout << i<<"	: "<< dx[i] << endl;
-
-	vector<float> dy(pixel.size(),0);
-	dy[0] = (pixel[width] - pixel[0]);
-	for(int i = width ; i < pixel.size(); i++)
-		dy[i]
-*/	
 	pixel.clear();
 	dx.clear();
 	dy.clear();
+	dz.clear();
 	return 0;
 }
