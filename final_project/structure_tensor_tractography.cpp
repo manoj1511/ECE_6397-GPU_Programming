@@ -10,6 +10,10 @@
 #include<stdexcept>
 #include"CImg.h"
 
+#define pi 3.141
+#define mu 0
+
+
 using namespace std;
 using namespace cimg_library;
 
@@ -52,6 +56,7 @@ int main()
 //		cout << filenames[it] << endl;
 	cout << filenames.size()<<endl;
 	cout << endl;
+	int depth = filenames.size();
 
 	vector<int> pixel;
 	int width, height;
@@ -116,6 +121,8 @@ int main()
 //		cout << i << "	: " << dz[i] << endl;
 
 
+	pixel.clear();
+
 /************************ Tensor field calculation *************************/
 
 	matrix init = {0,0,0,0,0,0,0,0,0};
@@ -138,7 +145,90 @@ int main()
 	cout << T[check].b1 << " " << T[check].b2 << " " << T[check].b3 << endl;
 	cout << T[check].c1 << " " << T[check].c2 << " " << T[check].c3 << endl;
 
-	pixel.clear();
+
+/************************ Blur the tensors *************************/
+// I am using gaussian kernel to blur
+
+  	double coeff;
+	int sigma = 32;									
+	coeff = 1/sqrt(2*sigma*sigma*pi);				
+	cout << "coefficient is : " << coeff << endl << endl;	
+
+	int k = 6 * sigma;
+	if(k%2==0) k++;	
+	int k_half = k/2;
+
+	vector<float> K(k,0);
+
+	float sum = 0;		
+	for(int i=-k_half; i<=k_half; i++)		
+	{
+		K[i+k_half]=coeff*exp(-(((i-mu)*(i-mu))/(2*sigma*sigma)));	
+		cout << "k["<<i+k_half<<"]	:" << K[i+k_half]<<endl;
+		sum += K[i+k_half];			
+	}
+	
+	cout << "Sum is 	: " << sum << endl;
+	cout << "-----------------------" << endl;  
+	cout << "Normalized K" << endl;  
+	cout << "-----------------------" << endl;  
+
+	float sum2 = 0;
+	for (int i=-k_half; i<=k_half; i++)
+	{
+		K[i+k_half]/=sum;
+		cout << "k["<<i+k_half<<"]	:" << K[i+k_half]<<endl;
+		sum2+=K[i+k_half];				
+	}
+
+
+	cout << "Sum is 	: " << sum2 << endl;
+
+/************************ Gaussian along X axis *************************/
+
+	float temp1 = 0;
+	vector<matrix> T_x(size,init);
+
+	for(int k = 0; k < depth; k++)
+	{
+		for(int j = 0; j < height; j++)
+		{
+			for(int i = 0; i < width-k; i++)
+			{
+				int index = (k*width*height) + (j*width) + i;
+				for(int ref = 0; ref < k; ref++)
+				{
+					temp1 += K[ref] + T[index+ref].a1;
+				}
+				T_x[index].a1;
+			}
+		}
+	}
+
+/************************ Gaussian along Y axis *************************/
+/*
+	vector<matrix> T_y(size,init);
+
+	for(int k = 0; k < depth; k++)
+	{
+		for(int j = 0; j < height-k; j++)
+		{
+			for(int i = 0; j < width-k; j++)
+			{
+				int index = (k*width*height) + (j*width) + i;
+				for(int ref = 0; ref < k; ref++)
+				{
+					temp1 += K[ref] + T_x[index+ref].a1;
+				}
+				T_y[index].a1;
+			}
+		}
+	}
+*/
+
+	
+
+	T_x.clear();
 	dx.clear();
 	dy.clear();
 	dz.clear();
