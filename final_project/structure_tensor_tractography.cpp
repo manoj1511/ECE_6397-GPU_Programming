@@ -9,7 +9,14 @@
 #include<sstream>
 #include<stdexcept>
 #include"CImg.h"
+#ifdef Success
+  #undef Success
+#endif
 #include<chrono>
+//#include<mkl_lapacke.h>
+//#define EIGEN_USE_MKL_ALL
+#include<Eigen>
+
 
 #define pi 3.141
 #define mu 0
@@ -17,6 +24,7 @@
 
 using namespace std;
 using namespace cimg_library;
+using namespace Eigen;
 
 struct matrix
 {
@@ -200,11 +208,8 @@ int main()
 		T[i].a1 = dx[i] * dx[i];
 		T[i].a2 = dx[i] * dy[i];
 		T[i].a3 = dx[i] * dz[i];
-		T[i].b1 = dy[i] * dx[i];
 		T[i].b2 = dy[i] * dy[i];
 		T[i].b3 = dy[i] * dz[i];
-		T[i].c1 = dz[i] * dx[i];
-		T[i].c2 = dz[i] * dy[i];
 		T[i].c3 = dz[i] * dz[i];
 	}
 
@@ -291,21 +296,18 @@ int main()
 					temp1 += K[ref] * T[index+ref].a1;
 					temp2 += K[ref] * T[index+ref].a2;
 					temp3 += K[ref] * T[index+ref].a3;
-					temp4 += K[ref] * T[index+ref].b1;
 					temp5 += K[ref] * T[index+ref].b2;
 					temp6 += K[ref] * T[index+ref].b3;
-					temp7 += K[ref] * T[index+ref].c1;
-					temp8 += K[ref] * T[index+ref].c2;
 					temp9 += K[ref] * T[index+ref].c3;
 				}
 				T_x[index].a1 = temp1;
 				T_x[index].a2 = temp2;
 				T_x[index].a3 = temp3;
-				T_x[index].b1 = temp4;
+				T_x[index].b1 = T_x[index].a2;
 				T_x[index].b2 = temp5;
 				T_x[index].b3 = temp6;
-				T_x[index].c1 = temp7;
-				T_x[index].c2 = temp8;
+				T_x[index].c1 = T_x[index].a3;
+				T_x[index].c2 = T_x[index].b3;
 				T_x[index].c3 = temp9;
 			}
 		}
@@ -361,21 +363,18 @@ int main()
 					temp1 += K[ref] * T_x[index+(ref*width)].a1;
 					temp2 += K[ref] * T_x[index+(ref*width)].a2;
 					temp3 += K[ref] * T_x[index+(ref*width)].a3;
-					temp4 += K[ref] * T_x[index+(ref*width)].b1;
 					temp5 += K[ref] * T_x[index+(ref*width)].b2;
 					temp6 += K[ref] * T_x[index+(ref*width)].b3;
-					temp7 += K[ref] * T_x[index+(ref*width)].c1;
-					temp8 += K[ref] * T_x[index+(ref*width)].c2;
 					temp9 += K[ref] * T_x[index+(ref*width)].c3;
 				}
 				T_y[index].a1 = temp1;
 				T_y[index].a2 = temp2;
 				T_y[index].a3 = temp3;
-				T_y[index].b1 = temp4;
+				T_y[index].b1 = T_y[index].a2; 
 				T_y[index].b2 = temp5;
 				T_y[index].b3 = temp6;
-				T_y[index].c1 = temp7;
-				T_y[index].c2 = temp8;
+				T_y[index].c1 = T_y[index].a3;  
+				T_y[index].c2 = T_y[index].b3; 
 				T_y[index].c3 = temp9;
 			}
 		}
@@ -411,9 +410,9 @@ int main()
 
 
 /************************* Gaussian along Z axis *************************/
-	
+/*	
 	K.clear();
-	K = create_kernel(1, &k_ele);	
+	K = create_kernel(2, &k_ele);	
 
 	start = chrono::high_resolution_clock::now();
 
@@ -436,21 +435,18 @@ int main()
 					temp1 += K[ref] * T_y[index+(ref*width*height)].a1;
 					temp2 += K[ref] * T_y[index+(ref*width*height)].a2;
 					temp3 += K[ref] * T_y[index+(ref*width*height)].a3;
-					temp4 += K[ref] * T_y[index+(ref*width*height)].b1;
 					temp5 += K[ref] * T_y[index+(ref*width*height)].b2;
 					temp6 += K[ref] * T_y[index+(ref*width*height)].b3;
-					temp7 += K[ref] * T_y[index+(ref*width*height)].c1;
-					temp8 += K[ref] * T_y[index+(ref*width*height)].c2;
 					temp9 += K[ref] * T_y[index+(ref*width*height)].c3;
 				}
 				T_z[index].a1 = temp1;
 				T_z[index].a2 = temp2;
 				T_z[index].a3 = temp3;
-				T_z[index].b1 = temp4;
+				T_z[index].b1 = T_z[index].a2; 
 				T_z[index].b2 = temp5;
 				T_z[index].b3 = temp6;
-				T_z[index].c1 = temp7;
-				T_z[index].c2 = temp8;
+				T_z[index].c1 = T_z[index].a3;
+				T_z[index].c2 = T_z[index].b3; 
 				T_z[index].c3 = temp9;
 			}
 		}
@@ -464,7 +460,7 @@ int main()
 	cout << "time taken to apply blur along Z axis	: " << time.count() << " ms" << endl;
 	
 	T_y.clear();					// I dont need T_y anymore
-
+*/
 /************************************************************************/
 /*
 	cout << "Printing T_z" << endl;
@@ -484,9 +480,70 @@ int main()
 	cout << endl;
 */
 /************************************************************************/
+	K.clear();
+	K = create_kernel(2, &k_ele);	
 
-	T = T_z;
-	T_z.clear();
+	start = chrono::high_resolution_clock::now();
+
+	vector< Eigen::Matrix3f > T_m(size);
+	
+	vector<matrix> T_z(size,init);
+
+	for(int k = 0; k <= depth-k_ele; k++)
+	{
+		for(int j = 0; j <= height-k_ele; j++)
+		{
+			for(int i = 0; i <= width-k_ele; i++)
+			{
+				temp1 = 0, temp2 = 0, temp3 = 0;
+				temp4 = 0, temp5 = 0, temp6 = 0;
+				temp7 = 0, temp8 = 0, temp9 = 0;
+
+				int index = (k*width*height) + (j*width) + i;
+				for(int ref = 0; ref < k_ele; ref++)
+				{
+					temp1 += K[ref] * T_y[index+(ref*width*height)].a1;
+					temp2 += K[ref] * T_y[index+(ref*width*height)].a2;
+					temp3 += K[ref] * T_y[index+(ref*width*height)].a3;
+					temp5 += K[ref] * T_y[index+(ref*width*height)].b2;
+					temp6 += K[ref] * T_y[index+(ref*width*height)].b3;
+					temp9 += K[ref] * T_y[index+(ref*width*height)].c3;
+				}
+				T_z[index].a1 = temp1;
+				T_z[index].a2 = temp2;
+				T_z[index].a3 = temp3;
+				T_z[index].b1 = T_z[index].a2; 
+				T_z[index].b2 = temp5;
+				T_z[index].b3 = temp6;
+				T_z[index].c1 = T_z[index].a3;
+				T_z[index].c2 = T_z[index].b3; 
+				T_z[index].c3 = temp9;
+	
+				T_m[index] << temp1, temp2, temp3, temp2, temp5, temp6, temp3, temp6, temp9;
+			}
+		}
+	}
+
+
+	stop = chrono::high_resolution_clock::now();
+
+	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+
+	cout << "time taken to apply blur along Z axis	: " << time.count() << " ms" << endl;
+	
+	T_y.clear();					// I dont need T_y anymore
+	
+	for(int iii = 0; iii < 20 ; iii++)
+	{
+		cout << T_z[iii].a1 << " " << T_z[iii].a2 << " " << T_z[iii].a3 << " " << endl;
+		cout << T_z[iii].b1 << " " << T_z[iii].b2 << " " << T_z[iii].b3 << " " << endl;
+		cout << T_z[iii].c1 << " " << T_z[iii].c2 << " " << T_z[iii].c3 << " " << endl << endl;
+	}
+	for (int ii = 0; ii < 20; ii++)	
+	{
+		EigenSolver<Matrix3f> handle(T_m[ii]);
+		cout << "Eigen vectors are" << endl << handle.eigenvectors() << endl << endl;
+	}		
 
 return 0;
 }
