@@ -33,6 +33,11 @@ struct matrix
 	float c1, c2, c3;
 };
 
+struct eigen_vectors
+{
+	float x, y, z;
+};
+
 vector<float> create_kernel(const int s, int *k_ele)
 {
 
@@ -234,12 +239,13 @@ int main()
 
 	int k_ele = 0;
 
-	K = create_kernel(5, &k_ele);
+	K = create_kernel(1, &k_ele);
 
 /************************************************************************/
 /*
 	matrix init2 = {255,0,0,0,0,0,0,0,0};
 	vector<matrix> T_new(8000, init2);
+	T.clear();
 	T = T_new;
 	vector<matrix> T_x(8000,init);
 	vector<matrix> T_y(8000,init);
@@ -251,13 +257,13 @@ int main()
 /************************************************************************/
 //print T
 /************************************************************************/
-/*
+
 	cout << "Printing T" << endl;
 	for(int k = 0; k < 2; k++)
 	{
-		for(int j = 0; j < height; j++)
+		for(int j = 0; j < 20; j++)
 		{	
-			for(int i = 0; i < height; i++)
+			for(int i = 0; i < 20; i++)
 			{
 				int index = (k*width*height) + (j*width) + i;
 				cout << T[index].a1 << " ";
@@ -267,7 +273,7 @@ int main()
 		cout << endl;
 	}
 	cout << endl;
-*/
+
 /************************************************************************/
 
 
@@ -321,13 +327,13 @@ int main()
 	
 
 /************************************************************************/
-/*
+
 	cout << "Printing T_x" << endl;
-	for(int k = 0; k < depth; k++)
+	for(int k = 0; k < 2; k++)
 	{
-		for(int j = 0; j < height; j++)
+		for(int j = 0; j < 20; j++)
 		{	
-			for(int i = 0; i < width; i++)
+			for(int i = 0; i < 20; i++)
 			{
 				int index = (k*width*height) + (j*width) + i;
 				cout << T_x[index].a1 << " ";
@@ -337,7 +343,7 @@ int main()
 		cout << endl;
 	}
 	cout << endl;
-*/
+
 /************************************************************************/
 
 /************************ Gaussian along Y axis *************************/
@@ -389,13 +395,13 @@ int main()
 	T_x.clear(); 					// I dont need T_x anymore
 
 /************************************************************************/
-/*
+
 	cout << "Printing T_y" << endl;
-	for(int k = 0; k < depth; k++)
+	for(int k = 0; k < 2; k++)
 	{
-		for(int j = 0; j < height; j++)
+		for(int j = 0; j < 20; j++)
 		{	
-			for(int i = 0; i < width; i++)
+			for(int i = 0; i < 20; i++)
 			{
 				int index = (k*width*height) + (j*width) + i;
 				cout << T_y[index].a1 << " ";
@@ -405,7 +411,7 @@ int main()
 		cout << endl;
 	}
 	cout << endl;
-*/
+
 /************************************************************************/
 
 
@@ -481,7 +487,11 @@ int main()
 */
 /************************************************************************/
 	K.clear();
-	K = create_kernel(2, &k_ele);	
+	K = create_kernel(1, &k_ele);	
+	
+	for(auto &i : K)
+		cout << i << " ";
+	cout << endl << endl;	
 
 	start = chrono::high_resolution_clock::now();
 
@@ -532,18 +542,50 @@ int main()
 	cout << "time taken to apply blur along Z axis	: " << time.count() << " ms" << endl;
 	
 	T_y.clear();					// I dont need T_y anymore
+
+/************************************************************************/
 	
-	for(int iii = 0; iii < 20 ; iii++)
+	cout << "Printing T_z" << endl;
+	for(int k = 0; k < 2; k++)
+	{
+		for(int j = 0; j < 20; j++)
+		{	
+			for(int i = 0; i < 20; i++)
+			{
+				int index = (k*width*height) + (j*width) + i;
+				cout << T_z[index].a1 << " ";
+			}
+			cout << endl;
+		}
+		cout << endl;
+	}
+	cout << endl;
+
+/************************************************************************/
+/*	for(int iii = 0; iii < 3 ; iii++)
 	{
 		cout << T_z[iii].a1 << " " << T_z[iii].a2 << " " << T_z[iii].a3 << " " << endl;
 		cout << T_z[iii].b1 << " " << T_z[iii].b2 << " " << T_z[iii].b3 << " " << endl;
 		cout << T_z[iii].c1 << " " << T_z[iii].c2 << " " << T_z[iii].c3 << " " << endl << endl;
 	}
-	for (int ii = 0; ii < 20; ii++)	
+*/
+	T_z.clear();
+
+	eigen_vectors initial = {0,0,0};
+	vector<float> T_v(size);
+	cout << "Eigen "<<endl;	
+	for (int ii = 0; ii < 3; ii++)	
 	{
 		EigenSolver<Matrix3f> handle(T_m[ii]);
-		cout << "Eigen vectors are" << endl << handle.eigenvectors() << endl << endl;
+		cout << handle.eigenvectors() << endl << endl;
 	}		
-
+/*
+	for(int i = 0; i < 10; i++)
+	{
+		cout << T_v[i].x << " " << T_v[i].y<< " " << T_v[i].z;
+		cout << endl;
+	}
+	cout << endl;
+*/
 return 0;
 }
