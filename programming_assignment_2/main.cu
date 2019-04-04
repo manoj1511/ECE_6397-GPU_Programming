@@ -51,8 +51,9 @@ float mse_error(float *ref, float *mat, int N_C)
 __global__
 void GPU_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C)
 {
-	int id = threadIdx.x + blockDim.x * blockIdx.x;
-	if(id >= N_C) return;
+	int idx = threadIdx.x + blockDim.x * blockIdx.x;
+	int idy = threadIdx.y + blockDim.y * blockIdx.y;
+	if(idx >= N_C || idy >= N_C) return;
 	
 }
 
@@ -86,13 +87,13 @@ int main(int argc, char* argv[])
 
 	file_1.read(reinterpret_cast<char *>(&A_T[0]), N_A*sizeof(float));
 
-	cout << "Printing A_T matrix : " << endl;
-	printmatrix(&A_T[0],cols_A, rows_A);
+//	cout << "Printing A_T matrix : " << endl;
+//	printmatrix(&A_T[0],cols_A, rows_A);
 	
 	transposematrix(&A_T[0], &A[0], cols_A, rows_A);
 
-	cout << "Printing A matrix : " << endl;
-	printmatrix(&A[0],cols_A, rows_A);
+//	cout << "Printing A matrix : " << endl;
+//	printmatrix(&A[0],cols_A, rows_A);
 	
 	cout << endl ;
 
@@ -114,13 +115,13 @@ int main(int argc, char* argv[])
 
 	file_2.read(reinterpret_cast<char *>(&B_T[0]), N_B*sizeof(float));
 
-	cout << "Printing B_T matrix : " << endl;
-	printmatrix(&B_T[0],cols_B, rows_B);
+//	cout << "Printing B_T matrix : " << endl;
+//	printmatrix(&B_T[0],cols_B, rows_B);
 
 	transposematrix(&B_T[0], &B[0], cols_B, rows_B);
 
-	cout << "Printing B matrix : " << endl;
-	printmatrix(&B[0],cols_B, rows_B);
+//	cout << "Printing B matrix : " << endl;
+//	printmatrix(&B[0],cols_B, rows_B);
 	
 	file_2.close();
 	
@@ -134,7 +135,7 @@ int main(int argc, char* argv[])
 
 /******************************* CuBlas ********************************/
 
-	cout << "Starting cublasSgemm : " << endl << endl;
+	cout << "Starting cublasSgemm " << endl << endl;
 
 	float* A_gpu;
 	float* B_gpu;
@@ -179,9 +180,9 @@ int main(int argc, char* argv[])
 	
 	transposematrix(&C_T[0], &C[0], cols_C, rows_C);
 
-	cout << "Printing C matrix : " << endl;
-	printmatrix(&C[0],cols_C, rows_C);
-	cout << endl;
+//	cout << "Printing C matrix : " << endl;
+//	printmatrix(&C[0],cols_C, rows_C);
+//	cout << endl;
 
 //	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
 
@@ -189,7 +190,7 @@ int main(int argc, char* argv[])
 
 	vector<float> D(N_C, 0);
 
-	cout << "starting CPU Matrix mat mul : " << endl << endl;
+	cout << "starting CPU Matrix mat mul  " << endl << endl;
 
 	for(int i = 0; i < rows_A; i++)
 	{
@@ -204,9 +205,9 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	cout << "Printing D matrix : " << endl;
-	printmatrix(&D[0],cols_C, rows_C);
-	cout << endl;
+//	cout << "Printing D matrix : " << endl;
+//	printmatrix(&D[0],cols_C, rows_C);
+//	cout << endl;
 	
 	float cpu_error = mse_error(&C[0], &D[0], N_C);
 
@@ -216,7 +217,13 @@ int main(int argc, char* argv[])
 
 /**************************** CPU Blocked matmul *****************************/
 
-	int B_size = 51;
+//	int B_size_r = 51;
+//	int B_size_c = 51;
+	
+//	if(rows_C < B_size_r) B_size_r = rows_C;
+//	if(cols_C < B_size_c) B_size_c = cols_C;
+
+	int B_size = 32;	
 
 	cout << endl << "Block size calculation : " << endl;
 	cout << "L1 Cache Size = 32 KB (found from lscpu)" << endl;
@@ -224,14 +231,31 @@ int main(int argc, char* argv[])
 	cout << "32KB / (3*4) = 2666 Bytes" << endl;
 	cout << "Nearest square root is 51^2 = 2601 " << endl;
 	cout << "So I chose a block size of 51" << endl << endl;
+	cout << "But I'm using size of 32 so that it can be divisible by the matrix sizes " << endl << endl;
+
+	memset(&D[0], 0, cols_C * rows_C * sizeof(float));
+
+	for(int i = 0; i < rows_A; i += B_size)
+		for(int j = 0; j < cols_B; j += B_size)
+			for(int k = 0; k < cols_A; k += B_size)
+				for(int ii = i ; ii < i + B_size; ii++)
+					for(int jj = j; jj < j + B_size; jj++)
+						for (int kk = k; kk < k + B_size; kk++)
+							D[jj + ii * cols_B] += A[ii * cols_A + kk] * B[jj + kk * cols_B];
+
+	float blocked_cpu_error = mse_error(&C[0], &D[0], N_C);
+
+	cout << "cpu blocked matrix multiplication mse error compared with sgemm is : " << blocked_cpu_error << endl << endl;	
+	cout << C[0] << " " << D[0] << endl;
+
 
 /******************************* GPU matmul ********************************/
 
-	int threads = 1024;
-	int blocks = N_C / threads + 1;
+	dim3 threads(32, 32);
+	dim3 blocks(N_C / 32 + 1, N_C / 32 + 1);
 
-	cout << "threads : " << threads << endl;
-	cout << "blocks : " << blocks << endl;
+//	cout << "threads : " << threads << endl;
+//	cout << "blocks : " << blocks << endl;
 
 	GPU_matmul<<<blocks, threads>>>(A_gpu, B_gpu , C_gpu, cols_C, rows_C, N_C);
 
