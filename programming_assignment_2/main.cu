@@ -36,6 +36,18 @@ void transposematrix(float *input , float *output , int cols , int rows)
 	}
 }
 
+float mse_error(float *ref, float *mat, int N_C)
+{
+	float sum = 0.0f;
+	for(int i = 0; i < N_C; i++)
+	{
+		int err = ref[i] - mat[i];
+		sum += err * err;
+	}
+	return sum;
+}
+
+
 __global__
 void GPU_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C)
 {
@@ -166,22 +178,16 @@ int main(int argc, char* argv[])
 	HANDLE_ERROR(cudaMemcpy(&C_T[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost));
 	
 	transposematrix(&C_T[0], &C[0], cols_C, rows_C);
-/*	
-	for(int i = 0; i < rows_C; i++)
-	{
-		for(int j = 0; j < cols_C; j++)
-		{
-			C[i * cols_C + j] = C_T[i + j * rows_C];
-		}
-	}
-*/
+
 	cout << "Printing C matrix : " << endl;
 	printmatrix(&C[0],cols_C, rows_C);
 	cout << endl;
 
-	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
+//	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
 
 /******************************* CPU matmul ********************************/
+
+	vector<float> D(N_C, 0);
 
 	cout << "starting CPU Matrix mat mul : " << endl << endl;
 
@@ -194,15 +200,30 @@ int main(int argc, char* argv[])
 			{
 				temp += A[k + i * cols_A] * B[j + k * cols_B];
 			}
-			C[i * cols_B + j] = temp;
+			D[i * cols_B + j] = temp;
 		}
 	}
 
-	cout << "Printing C matrix : " << endl;
-	printmatrix(&C[0],cols_C, rows_C);
+	cout << "Printing D matrix : " << endl;
+	printmatrix(&D[0],cols_C, rows_C);
 	cout << endl;
+	
+	float cpu_error = mse_error(&C[0], &D[0], N_C);
 
-	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
+	cout << "cpu matrix multiplication mse error compared with sgemm is : " << cpu_error << endl << endl;	
+
+//	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
+
+/**************************** CPU Blocked matmul *****************************/
+
+	int B_size = 51;
+
+	cout << endl << "Block size calculation : " << endl;
+	cout << "L1 Cache Size = 32 KB (found from lscpu)" << endl;
+	cout << "Needs to fit in 3 Blocks from A, B, C that takes 4 bytes for each element " << endl;
+	cout << "32KB / (3*4) = 2666 Bytes" << endl;
+	cout << "Nearest square root is 51^2 = 2601 " << endl;
+	cout << "So I chose a block size of 51" << endl << endl;
 
 /******************************* GPU matmul ********************************/
 
