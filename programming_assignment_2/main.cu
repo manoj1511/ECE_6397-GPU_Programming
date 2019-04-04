@@ -2,8 +2,15 @@
 #include <fstream>
 #include <vector>
 #include <cublas_v2.h>
+#define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))			// useful MACRO to check for errors
 
 using namespace std;
+
+static void HandleError( cudaError_t err, const char *file,  int line ) {
+   	if (err != cudaSuccess) {
+	     cout<<cudaGetErrorString( err )<<" in "<< file <<" at line "<< line;
+   	}
+}
 
 void printmatrix(float *mat, int cols, int rows)
 {
@@ -29,6 +36,13 @@ void transposematrix(float *input , float *output , int cols , int rows)
 	}
 }
 
+__global__
+void GPU_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C)
+{
+	int id = threadIdx.x + blockDim.x * blockIdx.x;
+	if(id >= N_C) return;
+	
+}
 
 
 int main(int argc, char* argv[])
@@ -104,6 +118,7 @@ int main(int argc, char* argv[])
 	vector<float> C_T(rows_A * cols_B, 0);
 	int rows_C = rows_A;
 	int cols_C = cols_B;
+	int N_C = rows_C * cols_C;	
 
 /******************************* CuBlas ********************************/
 
@@ -113,12 +128,12 @@ int main(int argc, char* argv[])
 	float* B_gpu;
 	float* C_gpu;
 	
-	cudaMalloc(&A_gpu, N_A * sizeof(float)+1);
-	cudaMalloc(&B_gpu, N_B * sizeof(float)+1);
-	cudaMalloc(&C_gpu, rows_A * cols_B * sizeof(float)+1);
+	HANDLE_ERROR(cudaMalloc(&A_gpu, N_A * sizeof(float)+1));
+	HANDLE_ERROR(cudaMalloc(&B_gpu, N_B * sizeof(float)+1));
+	HANDLE_ERROR(cudaMalloc(&C_gpu, N_C * sizeof(float)+1));
      
-	cudaMemcpy(A_gpu, &A_T[0], N_A * sizeof(float),cudaMemcpyHostToDevice);
-	cudaMemcpy(B_gpu, &B_T[0], N_B * sizeof(float),cudaMemcpyHostToDevice);
+	HANDLE_ERROR(cudaMemcpy(A_gpu, &A_T[0], N_A * sizeof(float),cudaMemcpyHostToDevice));
+	HANDLE_ERROR(cudaMemcpy(B_gpu, &B_T[0], N_B * sizeof(float),cudaMemcpyHostToDevice));
 	
 	cublasHandle_t handle;
 	cublasCreate(&handle);
@@ -129,10 +144,10 @@ int main(int argc, char* argv[])
 	float *beta = &bet;
 
 	cublasSgemm(handle, 				// Handle
-		    CUBLAS_OP_N, CUBLAS_OP_N, 		// trans_A, trans_B
+	  	    CUBLAS_OP_N, CUBLAS_OP_N, 		// trans_A, trans_B
 		    rows_A, cols_B, cols_A, 		// m, n, k
-		    alpha, 				// *alpha
-		    A_gpu, cols_A, 			// *A, lda
+		    alpha,  				// *alpha
+		    A_gpu, cols_A,			// *A, lda
 		    B_gpu, rows_A, 			// *B, ldb
 		    beta, 				// *beta
 		    C_gpu, cols_A);			// *C, ldc
@@ -148,10 +163,10 @@ int main(int argc, char* argv[])
 //		    C_gpu, 3);				// *C, ldc
 
 
-	cudaMemcpy(&C_T[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost);
+	HANDLE_ERROR(cudaMemcpy(&C_T[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost));
 	
-
-	
+	transposematrix(&C_T[0], &C[0], cols_C, rows_C);
+/*	
 	for(int i = 0; i < rows_C; i++)
 	{
 		for(int j = 0; j < cols_C; j++)
@@ -159,7 +174,7 @@ int main(int argc, char* argv[])
 			C[i * cols_C + j] = C_T[i + j * rows_C];
 		}
 	}
-
+*/
 	cout << "Printing C matrix : " << endl;
 	printmatrix(&C[0],cols_C, rows_C);
 	cout << endl;
@@ -174,10 +189,12 @@ int main(int argc, char* argv[])
 	{
 		for(int j = 0; j < cols_B; j++)
 		{
+			float temp = 0.0f;
 			for(int k = 0; k < cols_A; k++)
 			{
-				C[i * cols_B + j] += A[k + i * cols_A] * B[j + k * cols_B];
+				temp += A[k + i * cols_A] * B[j + k * cols_B];
 			}
+			C[i * cols_B + j] = temp;
 		}
 	}
 
@@ -185,6 +202,19 @@ int main(int argc, char* argv[])
 	printmatrix(&C[0],cols_C, rows_C);
 	cout << endl;
 
+	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
+
+/******************************* GPU matmul ********************************/
+
+	int threads = 1024;
+	int blocks = N_C / threads + 1;
+
+	cout << "threads : " << threads << endl;
+	cout << "blocks : " << blocks << endl;
+
+	GPU_matmul<<<blocks, threads>>>(A_gpu, B_gpu , C_gpu, cols_C, rows_C, N_C);
+
+	HANDLE_ERROR(cudaDeviceSynchronize());
 	cudaFree(A_gpu);
 	cudaFree(B_gpu);
 	cudaFree(C_gpu);
