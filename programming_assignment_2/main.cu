@@ -2,6 +2,8 @@
 #include <fstream>
 #include <vector>
 #include <cublas_v2.h>
+#include <chrono>
+
 #define HANDLE_ERROR( err ) (HandleError( err, __FILE__, __LINE__ ))			// useful MACRO to check for errors
 
 using namespace std;
@@ -63,6 +65,41 @@ void GPU_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C, i
 	sum = C[idx + idy * cols_C]; 
 }
 
+__global__
+void GPU_Shared_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C, int cols_A, float* test_gpu)
+{
+	extern __shared__ float sharedPtr[3 * 32 * 32];
+	float* C_ptr = &sharedPtr[0];
+	float* A_ptr = &sharedPtr[32 * 32];
+	float* B_ptr = &sharedPtr[2 * 32 * 32];
+
+//	size_t index_x = threadIdx.x + blockIdx.x * blockDim.x;
+//	size_t index_y = threadIdx.y + blockIdx.y * blockDim.y;
+//	size_t tid_x = threadIdx.x;
+//	size_t tid_y = threadIdx.y;
+//	size_t bid_x = blockIdx.x;
+//	size_t bid_y = blockIdx.y;
+//	size_t bd_x = blockDim.x;
+//	size_t bd_y = blockDim.y;
+
+	size_t idx_inside_block = threadIdx.x + 32 * threadIdx.y;
+	size_t idx_global = (threadIdx.x + blockIdx.x * blockDim.x) + cols_C * (threadIdx.y + blockIdx.y * blockDim.y);
+	C_ptr[idx_inside_block] = C[idx_global];
+	A_ptr[idx_inside_block] = A[idx_global];
+	B_ptr[idx_inside_block] = B[idx_global];
+
+	__syncthreads();
+//	if(blockIdx.x == 0 && blockIdx.y == 0)
+//	{
+//		test_gpu[idx_inside_block] = C_ptr[idx_inside_block];
+//		test_gpu[(32*32) + idx_inside_block] = A_ptr[idx_inside_block];
+//		test_gpu[(32*32*2) + idx_inside_block] = B_ptr[idx_inside_block];
+//	}
+	
+	
+
+}
+
 
 int main(int argc, char* argv[])
 {
@@ -97,8 +134,8 @@ int main(int argc, char* argv[])
 	
 	transposematrix(&A_T[0], &A[0], cols_A, rows_A);
 
-//	cout << "Printing A matrix : " << endl;
-//	printmatrix(&A[0],cols_A, rows_A);
+	cout << "Printing A matrix : " << endl;
+	printmatrix(&A[0],cols_A, rows_A);
 	
 	cout << endl ;
 
@@ -125,8 +162,8 @@ int main(int argc, char* argv[])
 
 	transposematrix(&B_T[0], &B[0], cols_B, rows_B);
 
-//	cout << "Printing B matrix : " << endl;
-//	printmatrix(&B[0],cols_B, rows_B);
+	cout << "Printing B matrix : " << endl;
+	printmatrix(&B[0],cols_B, rows_B);
 	
 	file_2.close();
 	
@@ -161,6 +198,9 @@ int main(int argc, char* argv[])
 	float *alpha = &alf;
 	float *beta = &bet;
 
+	chrono::high_resolution_clock::time_point start,stop;
+
+	start = chrono::high_resolution_clock::now();
 	cublasSgemm(handle, 				// Handle
 	  	    CUBLAS_OP_N, CUBLAS_OP_N, 		// trans_A, trans_B
 		    rows_A, cols_B, cols_A, 		// m, n, k
@@ -169,6 +209,13 @@ int main(int argc, char* argv[])
 		    B_gpu, rows_A, 			// *B, ldb
 		    beta, 				// *beta
 		    C_gpu, cols_A);			// *C, ldc
+ 	 cudaDeviceSynchronize();
+	 stop = chrono::high_resolution_clock::now();
+
+	 chrono::milliseconds cpu_time;                                                  // declare d to store time in milliseconds
+         cpu_time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+
+ 	cout << "cpu time taken         : " << cpu_time.count() << " ms" << endl; 
 
 
 //	cublasSgemm(handle, 				// Handle
@@ -185,8 +232,8 @@ int main(int argc, char* argv[])
 	
 	transposematrix(&C_T[0], &C[0], cols_C, rows_C);
 
-//	cout << "Printing C matrix : " << endl;
-//	printmatrix(&C[0],cols_C, rows_C);
+	cout << "Printing C matrix : " << endl;
+	printmatrix(&C[0],cols_C, rows_C);
 //	cout << endl;
 
 //	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
@@ -264,7 +311,28 @@ int main(int argc, char* argv[])
 
 	cout << "gpu matrix mul mse error compared with sgemm is : " << gpu_error << endl << endl;	
 	
+/**************************** GPU Shared matmul *****************************/
+
+	size_t shared_mem_size = 3 * 32 * 32 * sizeof(float);
+
+////Test
+	vector<float> test(3*32*32);
+
+	float *test_gpu;
+	cudaMalloc(&test_gpu, shared_mem_size);
+////	
+
+	GPU_Shared_matmul<<<blocks, threads, shared_mem_size>>>(A_gpu, B_gpu, C_gpu, cols_C, rows_C, N_C, cols_A, test_gpu);
+
+	HANDLE_ERROR(cudaMemcpy(&test[0], test_gpu, 3 * 32 * 32 * sizeof(float),cudaMemcpyDeviceToHost));
 	HANDLE_ERROR(cudaDeviceSynchronize());
+
+	printmatrix(&test[0],32, 2);
+	cout << endl << endl;
+	printmatrix(&test[32*32],32, 2);
+	cout << endl << endl;
+	printmatrix(&test[2*32*32],32, 2);
+	cout << endl << endl;
 
 	cudaFree(A_gpu);
 	cudaFree(B_gpu);
