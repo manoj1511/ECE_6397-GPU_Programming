@@ -62,44 +62,48 @@ void GPU_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C, i
 	{
 		sum += A[k + idy * cols_A] * B[k * cols_A + idx]; 	
 	}
-	sum = C[idx + idy * cols_C]; 
+	C[idx + idy * cols_C] = sum; 
 }
 
-__global__
-void GPU_Shared_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C, int cols_A, float* test_gpu)
+__global__ void sharedMatmul(float *a, float *b, float *c, int cols_C)
 {
-	extern __shared__ float sharedPtr[3 * 32 * 32];
-	float* C_ptr = &sharedPtr[0];
-	float* A_ptr = &sharedPtr[32 * 32];
-	float* B_ptr = &sharedPtr[2 * 32 * 32];
 
-//	size_t index_x = threadIdx.x + blockIdx.x * blockDim.x;
-//	size_t index_y = threadIdx.y + blockIdx.y * blockDim.y;
-//	size_t tid_x = threadIdx.x;
-//	size_t tid_y = threadIdx.y;
-//	size_t bid_x = blockIdx.x;
-//	size_t bid_y = blockIdx.y;
-//	size_t bd_x = blockDim.x;
-//	size_t bd_y = blockDim.y;
+	extern __shared__ float sharedPtr[2 * 32 * 32];
+    	float* A_ptr = &sharedPtr[0];
+   	float* B_ptr = &sharedPtr[32 * 32];
+    	int width = gridDim.x*blockDim.x;
 
-	size_t idx_inside_block = threadIdx.x + 32 * threadIdx.y;
-	size_t idx_global = (threadIdx.x + blockIdx.x * blockDim.x) + cols_C * (threadIdx.y + blockIdx.y * blockDim.y);
-	C_ptr[idx_inside_block] = C[idx_global];
-	A_ptr[idx_inside_block] = A[idx_global];
-	B_ptr[idx_inside_block] = B[idx_global];
+    	float acc = 0;   
+    
+    	int i = blockIdx.x*32 + threadIdx.x;
+    	int j = blockIdx.y*32 + threadIdx.y;
+    
 
-	__syncthreads();
-//	if(blockIdx.x == 0 && blockIdx.y == 0)
-//	{
-//		test_gpu[idx_inside_block] = C_ptr[idx_inside_block];
-//		test_gpu[(32*32) + idx_inside_block] = A_ptr[idx_inside_block];
-//		test_gpu[(32*32*2) + idx_inside_block] = B_ptr[idx_inside_block];
-//	}
-	
-	
+    	/* Accumulate C tile by tile. */
 
+    	for (int tileIdx = 0; tileIdx < gridDim.x ; tileIdx+=1)
+    	{
+
+        	/* Load one tile of A and one tile of B into shared mem */
+    
+		A_ptr[threadIdx.y*32+threadIdx.x] = a[j * width + tileIdx*32+threadIdx.x];  
+        	B_ptr[threadIdx.y*32+threadIdx.x] = b[(tileIdx * 32 + threadIdx.y)* width+ i ]; 
+    
+        	__syncthreads();                                        
+
+        	/* Accumulate one tile of C from tiles of A and B in shared mem */
+
+        	for (int k = 0 ;k < 32; k++)
+        	{   
+            		acc += A_ptr[threadIdx.y*32+k] * B_ptr[k*32+threadIdx.x];    
+        	}
+    
+        	__syncthreads();                                                            
+
+    	}
+
+    	c[j * width + i ] = acc;                            
 }
-
 
 int main(int argc, char* argv[])
 {
@@ -134,8 +138,8 @@ int main(int argc, char* argv[])
 	
 	transposematrix(&A_T[0], &A[0], cols_A, rows_A);
 
-	cout << "Printing A matrix : " << endl;
-	printmatrix(&A[0],cols_A, rows_A);
+//	cout << "Printing A matrix : " << endl;
+//	printmatrix(&A[0],cols_A, rows_A);
 	
 	cout << endl ;
 
@@ -162,8 +166,8 @@ int main(int argc, char* argv[])
 
 	transposematrix(&B_T[0], &B[0], cols_B, rows_B);
 
-	cout << "Printing B matrix : " << endl;
-	printmatrix(&B[0],cols_B, rows_B);
+//	cout << "Printing B matrix : " << endl;
+//	printmatrix(&B[0],cols_B, rows_B);
 	
 	file_2.close();
 	
@@ -209,40 +213,28 @@ int main(int argc, char* argv[])
 		    B_gpu, rows_A, 			// *B, ldb
 		    beta, 				// *beta
 		    C_gpu, cols_A);			// *C, ldc
- 	 cudaDeviceSynchronize();
-	 stop = chrono::high_resolution_clock::now();
+ 
+	cudaDeviceSynchronize();
 
-	 chrono::milliseconds cpu_time;                                                  // declare d to store time in milliseconds
-         cpu_time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	stop = chrono::high_resolution_clock::now();
+
+	chrono::milliseconds cpu_time;                                                  // declare d to store time in milliseconds
+	cpu_time = chrono::duration_cast<chrono::milliseconds>(stop - start);
 
  	cout << "cpu time taken         : " << cpu_time.count() << " ms" << endl; 
-
-
-//	cublasSgemm(handle, 				// Handle
-//		    CUBLAS_OP_N, CUBLAS_OP_N, 		// trans_A, trans_B
-//		    3, 2, 3,	 			// m, n, k
-//		    alpha, 				// *alpha
-//		    A_gpu, 3, 				// *A, lda
-//		    B_gpu, 3, 				// *B, ldb
-//		    beta, 				// *beta
-//		    C_gpu, 3);				// *C, ldc
-
 
 	HANDLE_ERROR(cudaMemcpy(&C_T[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost));
 	
 	transposematrix(&C_T[0], &C[0], cols_C, rows_C);
 
-	cout << "Printing C matrix : " << endl;
-	printmatrix(&C[0],cols_C, rows_C);
-//	cout << endl;
-
-//	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
+//	cout << "Printing C matrix : " << endl;
+//	printmatrix(&C[0],cols_C, rows_C);
 
 /******************************* CPU matmul ********************************/
 
 	vector<float> D(N_C, 0);
 	vector<float> D_T(N_C, 0);
-
+/*
 	cout << "starting CPU Matrix mat mul  " << endl << endl;
 
 	for(int i = 0; i < rows_A; i++)
@@ -265,17 +257,9 @@ int main(int argc, char* argv[])
 	float cpu_error = mse_error(&C[0], &D[0], N_C);
 
 	cout << "cpu matrix mul mse error compared with sgemm is : " << cpu_error << endl << endl;	
-
-//	memset(&C[0], 0, cols_C * rows_C * sizeof(float));
-
+*/
 /**************************** CPU Blocked matmul *****************************/
-
-//	int B_size_r = 51;
-//	int B_size_c = 51;
-	
-//	if(rows_C < B_size_r) B_size_r = rows_C;
-//	if(cols_C < B_size_c) B_size_c = cols_C;
-
+/*
 	int B_size = 32;	
 
 	cout << "I'm using size of 32 so that it can be divisible by the matrix sizes " << endl << endl;
@@ -293,19 +277,21 @@ int main(int argc, char* argv[])
 	float blocked_cpu_error = mse_error(&C[0], &D[0], N_C);
 
 	cout << "cpu blocked matrix mul mse error compared with sgemm is : " << blocked_cpu_error << endl << endl;	
-  
-//	cout << C[0] << " " << D[0] << endl;
+*/  
 
 /******************************* GPU matmul ********************************/
 
 	dim3 threads(32, 32);
-	dim3 blocks(N_C / 32 + 1, N_C / 32 + 1);
+	dim3 blocks(cols_C / 32, rows_C / 32);
+
+	memset(&D[0], 0, cols_C * rows_C * sizeof(float));
+
+	HANDLE_ERROR(cudaMemcpy(A_gpu, &A[0], rows_A * cols_A * sizeof(float),cudaMemcpyHostToDevice));
+	HANDLE_ERROR(cudaMemcpy(B_gpu, &B[0], rows_B * cols_B * sizeof(float),cudaMemcpyHostToDevice));
 
 	GPU_matmul<<<blocks, threads>>>(A_gpu, B_gpu , C_gpu, cols_C, rows_C, N_C, cols_A);
 
-	HANDLE_ERROR(cudaMemcpy(&D_T[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost));
-
-	transposematrix(&D_T[0], &D[0], cols_C, rows_C);	
+	HANDLE_ERROR(cudaMemcpy(&D[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost));
 
 	float gpu_error = mse_error(&C[0], &D[0], N_C);
 
@@ -313,29 +299,24 @@ int main(int argc, char* argv[])
 	
 /**************************** GPU Shared matmul *****************************/
 
-	size_t shared_mem_size = 3 * 32 * 32 * sizeof(float);
+	size_t shared_mem_size = 2 * 32 * 32 * sizeof(float);
+	memset(&D[0], 0, N_C * sizeof(float));
+	int n = 2048;
+//	GPU_Shared_matmul<<<blocks, threads, shared_mem_size>>>(A_gpu, B_gpu, D_gpu, cols_C, rows_C, N_C, cols_A);
+	dim3 blockSize(32, 32);
+        dim3 gridSize(n / 32, n / 32);
+        sharedMatmul<<<gridSize, blockSize, shared_mem_size>>>(A_gpu, B_gpu, C_gpu, n);
+	cudaDeviceSynchronize();
+	HANDLE_ERROR(cudaMemcpy(&D[0], C_gpu, N_C * sizeof(float), cudaMemcpyDeviceToHost));
 
-////Test
-	vector<float> test(3*32*32);
 
-	float *test_gpu;
-	cudaMalloc(&test_gpu, shared_mem_size);
-////	
-
-	GPU_Shared_matmul<<<blocks, threads, shared_mem_size>>>(A_gpu, B_gpu, C_gpu, cols_C, rows_C, N_C, cols_A, test_gpu);
-
-	HANDLE_ERROR(cudaMemcpy(&test[0], test_gpu, 3 * 32 * 32 * sizeof(float),cudaMemcpyDeviceToHost));
-	HANDLE_ERROR(cudaDeviceSynchronize());
-
-	printmatrix(&test[0],32, 2);
-	cout << endl << endl;
-	printmatrix(&test[32*32],32, 2);
-	cout << endl << endl;
-	printmatrix(&test[2*32*32],32, 2);
-	cout << endl << endl;
+	float gpu_shared_error = mse_error(&C[0], &D[0], N_C);
+	cout << "gpu shared matrix mul mse error compared with sgemm is : " << gpu_shared_error << endl << endl;	
+	cout << "Reached this point" << endl;	
 
 	cudaFree(A_gpu);
 	cudaFree(B_gpu);
 	cudaFree(C_gpu);
+
 	return 0;
 }
