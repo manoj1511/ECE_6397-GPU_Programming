@@ -65,7 +65,8 @@ void GPU_matmul(float* A, float* B, float* C, int cols_C, int rows_C, int N_C, i
 	C[idx + idy * cols_C] = sum; 
 }
 
-__global__ void sharedMatmul(float *a, float *b, float *c, int cols_C)
+__global__ 
+void GPU_Shared_matmul(float *A, float *B, float *C, int cols_C)
 {
 
 	extern __shared__ float sharedPtr[2 * 32 * 32];
@@ -86,8 +87,8 @@ __global__ void sharedMatmul(float *a, float *b, float *c, int cols_C)
 
         	/* Load one tile of A and one tile of B into shared mem */
     
-		A_ptr[threadIdx.y*32+threadIdx.x] = a[j * width + tileIdx*32+threadIdx.x];  
-        	B_ptr[threadIdx.y*32+threadIdx.x] = b[(tileIdx * 32 + threadIdx.y)* width+ i ]; 
+		A_ptr[threadIdx.y*32+threadIdx.x] = A[j * width + (tileIdx * 32 + threadIdx.x)];  
+        	B_ptr[threadIdx.y*32+threadIdx.x] = B[(tileIdx * 32 + threadIdx.y) * width + i]; 
     
         	__syncthreads();                                        
 
@@ -101,8 +102,7 @@ __global__ void sharedMatmul(float *a, float *b, float *c, int cols_C)
         	__syncthreads();                                                            
 
     	}
-
-    	c[j * width + i ] = acc;                            
+    	C[j * width + i ] = acc;                            
 }
 
 int main(int argc, char* argv[])
@@ -122,10 +122,9 @@ int main(int argc, char* argv[])
 	fstream file_1(filename_1.c_str());
 	unsigned int rows_A, cols_A;
 	file_1.read(reinterpret_cast<char *>(&rows_A),sizeof(unsigned int));
-	cout << "Rows in A : " << rows_A <<endl;
+	cout << "Rows in A : " << rows_A << "; ";
 	file_1.read(reinterpret_cast<char *>(&cols_A),sizeof(unsigned int));
-	cout << "Cols in A : " << cols_A << endl;
-	cout << endl;
+	cout << "Cols in A : " << cols_A << "; " << endl;
 	int N_A = rows_A * cols_A;
 
 	vector<float> A_T(N_A,0);
@@ -150,10 +149,9 @@ int main(int argc, char* argv[])
 	fstream file_2(filename_2.c_str());
 	unsigned int rows_B, cols_B;
 	file_2.read(reinterpret_cast<char *>(&rows_B),sizeof(unsigned int));
-	cout << "Rows in B : " << rows_B <<endl;
+	cout << "Rows in B : " << rows_B << "; ";
 	file_2.read(reinterpret_cast<char *>(&cols_B),sizeof(unsigned int));
-	cout << "Cols in B : " << cols_B << endl;
-	cout << endl;
+	cout << "Cols in B : " << cols_B << "; " << endl;
 
 	int N_B = rows_B * cols_B;
 	vector<float> B_T(N_B,0);
@@ -170,6 +168,7 @@ int main(int argc, char* argv[])
 //	printmatrix(&B[0],cols_B, rows_B);
 	
 	file_2.close();
+	cout << "____________________________________________________________________" << endl << endl;
 	
 /***************************** DECLARE C *******************************/
 
@@ -217,11 +216,10 @@ int main(int argc, char* argv[])
 	cudaDeviceSynchronize();
 
 	stop = chrono::high_resolution_clock::now();
+	chrono::duration<double> cpu_time;
+	cpu_time = chrono::duration_cast<chrono::duration<double>>(stop - start);
 
-	chrono::milliseconds cpu_time;                                                  // declare d to store time in milliseconds
-	cpu_time = chrono::duration_cast<chrono::milliseconds>(stop - start);
-
- 	cout << "cpu time taken         : " << cpu_time.count() << " ms" << endl; 
+ 	cout << "SGEMM time taken         		: " << cpu_time.count()*1000 << " ms" << endl; 
 
 	HANDLE_ERROR(cudaMemcpy(&C_T[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost));
 	
@@ -229,13 +227,16 @@ int main(int argc, char* argv[])
 
 //	cout << "Printing C matrix : " << endl;
 //	printmatrix(&C[0],cols_C, rows_C);
-
+	cout << "**MSE Error comparison made with SGEMM Output**" << endl;
+	cout << "____________________________________________________________________" << endl << endl;
 /******************************* CPU matmul ********************************/
 
 	vector<float> D(N_C, 0);
 	vector<float> D_T(N_C, 0);
-/*
+
 	cout << "starting CPU Matrix mat mul  " << endl << endl;
+
+	start = chrono::high_resolution_clock::now();
 
 	for(int i = 0; i < rows_A; i++)
 	{
@@ -250,21 +251,28 @@ int main(int argc, char* argv[])
 		}
 	}
 
+	stop = chrono::high_resolution_clock::now();
+
+	cpu_time = chrono::duration_cast<chrono::duration<double>>(stop - start);
+ 
+	cout << "CPU Matrix mul time taken         	: " << cpu_time.count()*1000 << " ms" << endl; 
+
 //	cout << "Printing D matrix : " << endl;
 //	printmatrix(&D[0],cols_C, rows_C);
 //	cout << endl;
 	
 	float cpu_error = mse_error(&C[0], &D[0], N_C);
 
-	cout << "cpu matrix mul mse error compared with sgemm is : " << cpu_error << endl << endl;	
-*/
+	cout << "CPU Matrix mul mse error		: " << cpu_error << endl;	
+	cout << "____________________________________________________________________" << endl << endl;
+
 /**************************** CPU Blocked matmul *****************************/
-/*
+
+	cout << "starting CPU Blocked Matrix mat mul  " << endl << endl;
+
 	int B_size = 32;	
-
-	cout << "I'm using size of 32 so that it can be divisible by the matrix sizes " << endl << endl;
-
 	memset(&D[0], 0, cols_C * rows_C * sizeof(float));
+	start = chrono::high_resolution_clock::now();
 
 	for(int i = 0; i < rows_A; i += B_size)
 	    for(int j = 0; j < cols_B; j += B_size)
@@ -274,13 +282,19 @@ int main(int argc, char* argv[])
 			    for(int kk = k; kk < k + B_size; kk++)
 				D[jj + ii * cols_B] += A[ii * cols_A + kk] * B[jj + kk * cols_B];
 
+	stop = chrono::high_resolution_clock::now();
+
+	cpu_time = chrono::duration_cast<chrono::duration<double>>(stop - start);
+ 
+	cout << "CPU Blocked Matrix mul time taken 	: " << cpu_time.count()*1000 << " ms" << endl; 
+
 	float blocked_cpu_error = mse_error(&C[0], &D[0], N_C);
-
-	cout << "cpu blocked matrix mul mse error compared with sgemm is : " << blocked_cpu_error << endl << endl;	
-*/  
-
+	cout << "CPU Blocked matrix mul mse error 	: " << blocked_cpu_error << endl;	
+	cout << "____________________________________________________________________" << endl << endl;
+ 
 /******************************* GPU matmul ********************************/
 
+	cout << "starting GPU Matrix mat mul  " << endl << endl;
 	dim3 threads(32, 32);
 	dim3 blocks(cols_C / 32, rows_C / 32);
 
@@ -289,30 +303,51 @@ int main(int argc, char* argv[])
 	HANDLE_ERROR(cudaMemcpy(A_gpu, &A[0], rows_A * cols_A * sizeof(float),cudaMemcpyHostToDevice));
 	HANDLE_ERROR(cudaMemcpy(B_gpu, &B[0], rows_B * cols_B * sizeof(float),cudaMemcpyHostToDevice));
 
+	cudaEvent_t begin, end;								// 2 events to record time
+
+	cudaEventCreate(&begin);							// create the 2 event
+	cudaEventCreate(&end);
+	
+	cudaEventRecord(begin);								// send the start event to stream
+
 	GPU_matmul<<<blocks, threads>>>(A_gpu, B_gpu , C_gpu, cols_C, rows_C, N_C, cols_A);
+
+	cudaEventRecord(end);								// send the stop event to stream
+	cudaEventSynchronize(end);							// wait till end occurs
+
+	float gpu_time = 0;								// declare a variable to store time in milliseconds
+	cudaEventElapsedTime(&gpu_time, begin, end);					// store the time
+	cout << "GPU Matrix mul time taken		: " << gpu_time <<" ms" << endl; // output gpu time
 
 	HANDLE_ERROR(cudaMemcpy(&D[0], C_gpu, rows_A * cols_B * sizeof(float),cudaMemcpyDeviceToHost));
 
 	float gpu_error = mse_error(&C[0], &D[0], N_C);
-
-	cout << "gpu matrix mul mse error compared with sgemm is : " << gpu_error << endl << endl;	
+	cout << "GPU Matrix mul mse error 		: " << gpu_error << endl;	
+	cout << "____________________________________________________________________" << endl << endl;
 	
 /**************************** GPU Shared matmul *****************************/
 
+	cout << "starting GPU Shared Matrix mat mul  " << endl << endl;
 	size_t shared_mem_size = 2 * 32 * 32 * sizeof(float);
+	
+	cudaEventRecord(begin);								// send the start event to stream
+
+        GPU_Shared_matmul<<<blocks, threads, shared_mem_size>>>(A_gpu, B_gpu, C_gpu, cols_C);
+
+	cudaEventRecord(end);								// send the stop event to stream
+	cudaEventSynchronize(end);							// wait till end occurs
+
+	cudaEventElapsedTime(&gpu_time, begin, end);					// store the time
+	cout << "GPU Shared Matrix mul time taken	: " << gpu_time <<" ms" << endl; // output gpu time
+
 	memset(&D[0], 0, N_C * sizeof(float));
-	int n = 2048;
-//	GPU_Shared_matmul<<<blocks, threads, shared_mem_size>>>(A_gpu, B_gpu, D_gpu, cols_C, rows_C, N_C, cols_A);
-	dim3 blockSize(32, 32);
-        dim3 gridSize(n / 32, n / 32);
-        sharedMatmul<<<gridSize, blockSize, shared_mem_size>>>(A_gpu, B_gpu, C_gpu, n);
-	cudaDeviceSynchronize();
 	HANDLE_ERROR(cudaMemcpy(&D[0], C_gpu, N_C * sizeof(float), cudaMemcpyDeviceToHost));
 
-
 	float gpu_shared_error = mse_error(&C[0], &D[0], N_C);
-	cout << "gpu shared matrix mul mse error compared with sgemm is : " << gpu_shared_error << endl << endl;	
-	cout << "Reached this point" << endl;	
+	cout << "gpu shared matrix mul mse error	: " << gpu_shared_error << endl;	
+	cout << "____________________________________________________________________" << endl << endl;
+
+/********************************* Cleanup ***********************************/
 
 	cudaFree(A_gpu);
 	cudaFree(B_gpu);
