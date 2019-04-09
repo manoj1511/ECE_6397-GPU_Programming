@@ -16,7 +16,7 @@
 //#include<mkl_lapacke.h>
 //#define EIGEN_USE_MKL_ALL
 #include<Eigen>
-
+#include<cmath>
 
 #define pi 3.141
 #define mu 0
@@ -33,9 +33,15 @@ struct matrix
 	float c1, c2, c3;
 };
 
+
 struct eigen_vectors
+{	
+	float a, b, c;
+};
+
+struct pixel
 {
-	float x, y, z;
+	float r, g, b;
 };
 
 vector<float> create_kernel(const int s, int *k_ele)
@@ -139,11 +145,11 @@ int main()
 
 	stop = chrono::high_resolution_clock::now();
 	
-	chrono::milliseconds time;					
+	chrono::duration<double> time;					
+	
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
-	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
-
-	cout << "time taken to read files	: " << time.count() << " ms" << endl;
+	cout << "time taken to read files			: " << time.count()*1000 << " ms" << endl;
 
 	float h = 1;
 	float h2 = 4;
@@ -195,9 +201,9 @@ int main()
 
 	stop = chrono::high_resolution_clock::now();
 	
-	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
-	cout << "time taken to calculate partial derivatives	: " << time.count() << " ms" << endl;
+	cout << "time taken to calculate partial derivatives	: " << time.count()*1000 << " ms" << endl;
 
 	pixel.clear();
 
@@ -224,9 +230,9 @@ int main()
 
 	stop = chrono::high_resolution_clock::now();
 	
-	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
-	cout << "time taken to calculate Tensor field	: " << time.count() << " ms" << endl;
+	cout << "time taken to calculate Tensor field		: " << time.count()*1000 << " ms" << endl;
 	
 /* 	
 	int check = 0;
@@ -257,7 +263,7 @@ int main()
 /************************************************************************/
 //print T
 /************************************************************************/
-
+/*
 	cout << "Printing T" << endl;
 	for(int k = 0; k < 2; k++)
 	{
@@ -273,7 +279,7 @@ int main()
 		cout << endl;
 	}
 	cout << endl;
-
+*/
 /************************************************************************/
 
 
@@ -321,13 +327,13 @@ int main()
 
 	stop = chrono::high_resolution_clock::now();
 
-	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
-	cout << "time taken to apply blur along X axis	: " << time.count() << " ms" << endl;
+	cout << "time taken to apply blur along X axis		: " << time.count()* 1000 << " ms" << endl;
 	
 
 /************************************************************************/
-
+/*
 	cout << "Printing T_x" << endl;
 	for(int k = 0; k < 2; k++)
 	{
@@ -343,7 +349,7 @@ int main()
 		cout << endl;
 	}
 	cout << endl;
-
+*/
 /************************************************************************/
 
 /************************ Gaussian along Y axis *************************/
@@ -388,14 +394,14 @@ int main()
 
 	stop = chrono::high_resolution_clock::now();
 
-	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
-	cout << "time taken to apply blur along Y axis	: " << time.count() << " ms" << endl;
+	cout << "time taken to apply blur along Y axis		: " << time.count()*1000 << " ms" << endl;
 	
 	T_x.clear(); 					// I dont need T_x anymore
 
 /************************************************************************/
-
+/*
 	cout << "Printing T_y" << endl;
 	for(int k = 0; k < 2; k++)
 	{
@@ -411,105 +417,40 @@ int main()
 		cout << endl;
 	}
 	cout << endl;
-
+*/
 /************************************************************************/
 
 
 /************************* Gaussian along Z axis *************************/
-/*	
-	K.clear();
-	K = create_kernel(2, &k_ele);	
 
-	start = chrono::high_resolution_clock::now();
-
-	vector<matrix> T_z(size,init);
-	
-	for(int k = 0; k <= depth-k_ele; k++)
-	{
-		for(int j = 0; j <= height-k_ele; j++)
-		{
-			for(int i = 0; i <= width-k_ele; i++)
-			{
-		
-				temp1 = 0, temp2 = 0, temp3 = 0;
-				temp4 = 0, temp5 = 0, temp6 = 0;
-				temp7 = 0, temp8 = 0, temp9 = 0;
-
-				int index = (k*width*height) + (j*width) + i;
-				for(int ref = 0; ref < k_ele; ref++)
-				{
-					temp1 += K[ref] * T_y[index+(ref*width*height)].a1;
-					temp2 += K[ref] * T_y[index+(ref*width*height)].a2;
-					temp3 += K[ref] * T_y[index+(ref*width*height)].a3;
-					temp5 += K[ref] * T_y[index+(ref*width*height)].b2;
-					temp6 += K[ref] * T_y[index+(ref*width*height)].b3;
-					temp9 += K[ref] * T_y[index+(ref*width*height)].c3;
-				}
-				T_z[index].a1 = temp1;
-				T_z[index].a2 = temp2;
-				T_z[index].a3 = temp3;
-				T_z[index].b1 = T_z[index].a2; 
-				T_z[index].b2 = temp5;
-				T_z[index].b3 = temp6;
-				T_z[index].c1 = T_z[index].a3;
-				T_z[index].c2 = T_z[index].b3; 
-				T_z[index].c3 = temp9;
-			}
-		}
-	}
-
-
-	stop = chrono::high_resolution_clock::now();
-
-	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
-
-	cout << "time taken to apply blur along Z axis	: " << time.count() << " ms" << endl;
-	
-	T_y.clear();					// I dont need T_y anymore
-*/
-/************************************************************************/
-/*
-	cout << "Printing T_z" << endl;
-	for(int k = 0; k < depth; k++)
-	{
-		for(int j = 0; j < height; j++)
-		{	
-			for(int i = 0; i < width; i++)
-			{
-				int index = (k*width*height) + (j*width) + i;
-				cout << T_z[index].a1 << " ";
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
-	cout << endl;
-*/
-/************************************************************************/
 	K.clear();
 	K = create_kernel(1, &k_ele);	
 	
-	for(auto &i : K)
-		cout << i << " ";
-	cout << endl << endl;	
+//	for(auto &i : K)
+//		cout << i << " ";
+//	cout << endl << endl;	
 
 	start = chrono::high_resolution_clock::now();
 
-	vector< Eigen::Matrix3f > T_m(size);
-	
-	vector<matrix> T_z(size,init);
+	int new_width  = width  - k_ele;
+	int new_height = height - k_ele;
+	int new_depth  = depth  - k_ele;
+	int new_size   = new_width * new_height * new_depth;
 
-	for(int k = 0; k <= depth-k_ele; k++)
+	vector< Eigen::Matrix3f > T_m(new_size);	
+
+	for(int k = 0; k < new_depth; k++)
 	{
-		for(int j = 0; j <= height-k_ele; j++)
+		for(int j = 0; j < new_height; j++)
 		{
-			for(int i = 0; i <= width-k_ele; i++)
+			for(int i = 0; i < new_width; i++)
 			{
 				temp1 = 0, temp2 = 0, temp3 = 0;
 				temp4 = 0, temp5 = 0, temp6 = 0;
 				temp7 = 0, temp8 = 0, temp9 = 0;
 
 				int index = (k*width*height) + (j*width) + i;
+				int index_2 = (k*new_width*new_height) + (j*new_width) + i;
 				for(int ref = 0; ref < k_ele; ref++)
 				{
 					temp1 += K[ref] * T_y[index+(ref*width*height)].a1;
@@ -519,17 +460,8 @@ int main()
 					temp6 += K[ref] * T_y[index+(ref*width*height)].b3;
 					temp9 += K[ref] * T_y[index+(ref*width*height)].c3;
 				}
-				T_z[index].a1 = temp1;
-				T_z[index].a2 = temp2;
-				T_z[index].a3 = temp3;
-				T_z[index].b1 = T_z[index].a2; 
-				T_z[index].b2 = temp5;
-				T_z[index].b3 = temp6;
-				T_z[index].c1 = T_z[index].a3;
-				T_z[index].c2 = T_z[index].b3; 
-				T_z[index].c3 = temp9;
 	
-				T_m[index] << temp1, temp2, temp3, temp2, temp5, temp6, temp3, temp6, temp9;
+				T_m[index_2] << temp1, temp2, temp3, temp2, temp5, temp6, temp3, temp6, temp9;
 			}
 		}
 	}
@@ -537,55 +469,61 @@ int main()
 
 	stop = chrono::high_resolution_clock::now();
 
-	time = chrono::duration_cast<chrono::milliseconds>(stop - start);
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
-	cout << "time taken to apply blur along Z axis	: " << time.count() << " ms" << endl;
+	cout << "time taken to apply blur along Z axis		: " << time.count() * 1000<< " ms" << endl;
 	
 	T_y.clear();					// I dont need T_y anymore
 
+/************************** Calc Evec *********************************/
+
+	eigen_vectors eigen_init = {0,0,0};
+
+	vector<eigen_vectors>Evec(new_size, eigen_init);
+
+	cout << "Calculating Eigen "<<endl;	
+
+	start = chrono::high_resolution_clock::now();
+
+	SelfAdjointEigenSolver<Matrix3f> handle;
+
+	for (int ii = 0; ii < new_size; ii++)	
+	{
+		handle.computeDirect(T_m[ii]);
+		Eigen::Vector3f::Map(&Evec[ii].a) = handle.eigenvectors().col(0);
+	}
+
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+	cout << "time taken to calcuate Eigen			: " << time.count() * 1000 << " ms" << endl;
+//	cout << Evec[0].a <<" "<<Evec[0].b <<" "<<Evec[0].c;
+		
 /************************************************************************/
+
+	vector<float> vec_length(new_size, 0);
+	vector<eigen_vectors> norm_Evec(new_size, eigen_init);
+
+	float temp1a = 0.0f;
+	float temp2a = 0.0f;
+	float temp3a = 0.0f;
+	start = chrono::high_resolution_clock::now();
+	for(int i = 0; i < new_size; i++)
+	{
+		temp1a = pow(Evec[i].a,2);
+		temp2a = pow(Evec[i].b,2);
+		temp3a = pow(Evec[i].c,2);
+		vec_length[i] = sqrt(temp1+temp2+temp3);
+	}
+	for(int i = 0; i < new_size; i++)
+	{
+		norm_Evec[i].a = Evec[i].a / vec_length[i];
+		norm_Evec[i].b = Evec[i].b / vec_length[i];
+		norm_Evec[i].c = Evec[i].c / vec_length[i];
+	}
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+	cout << "time taken for post calculation after Eigen	: " << time.count() * 1000 << " ms" << endl;
 	
-	cout << "Printing T_z" << endl;
-	for(int k = 0; k < 2; k++)
-	{
-		for(int j = 0; j < 20; j++)
-		{	
-			for(int i = 0; i < 20; i++)
-			{
-				int index = (k*width*height) + (j*width) + i;
-				cout << T_z[index].a1 << " ";
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
-	cout << endl;
-
-/************************************************************************/
-/*	for(int iii = 0; iii < 3 ; iii++)
-	{
-		cout << T_z[iii].a1 << " " << T_z[iii].a2 << " " << T_z[iii].a3 << " " << endl;
-		cout << T_z[iii].b1 << " " << T_z[iii].b2 << " " << T_z[iii].b3 << " " << endl;
-		cout << T_z[iii].c1 << " " << T_z[iii].c2 << " " << T_z[iii].c3 << " " << endl << endl;
-	}
-*/
-	T_z.clear();
-
-	eigen_vectors initial = {0,0,0};
-	vector<float> T_v(size);
-	cout << "Eigen "<<endl;	
-	for (int ii = 0; ii < 3; ii++)	
-	{
-		EigenSolver<Matrix3f> handle(T_m[ii]);
-		cout << handle.eigenvectors() << endl << endl;
-	}		
-/*
-	for(int i = 0; i < 10; i++)
-	{
-		cout << T_v[i].x << " " << T_v[i].y<< " " << T_v[i].z;
-		cout << endl;
-	}
-	cout << endl;
-*/
-return 0;
+	
+	return 0;
 }
