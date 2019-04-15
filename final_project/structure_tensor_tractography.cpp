@@ -17,7 +17,7 @@
 //#define EIGEN_USE_MKL_ALL
 #include<Eigen>
 #include<cmath>
-
+#include<fstream>
 #define pi 3.141
 #define mu 0
 
@@ -154,7 +154,7 @@ int main()
 	float h = 1;
 	float h2 = 4;
 	unsigned int size = pixel.size();
-
+	cout << "files	: " << depth << endl;
 
 	start = chrono::high_resolution_clock::now();
 
@@ -169,7 +169,7 @@ int main()
 		else dx[i] = (pixel[i+1] - pixel[i-1])/(2*h);
 	}	
 
-/************************ partial derivate along y direction *************************/
+/*********************** partial derivate along y direction *************************/
 
 	vector<float> dy(size,0);
 	int row;
@@ -181,7 +181,7 @@ int main()
 		else dy[i] = (pixel[i+width] - pixel[i-width])/(2*h);
 	}
 
-/************************ partial derivate along z direction *************************/
+/*********************** partial derivate along z direction *************************/
 	
 	vector<float> dz(size,0);
 	for(int i = 0; i < size; i++)
@@ -204,10 +204,39 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to calculate partial derivatives	: " << time.count()*1000 << " ms" << endl;
+/*
+	ofstream file("file5.txt");
+	for(int i = 5*511*511; i < 6*511*511; i++)
+	{
+		file << pixel[i] << " ";
+	}
+	file.close();	
+*/
+/*
+	ofstream file("part_der_x.txt");
+	for(int i = 5*511*511; i < 6*511*511; i++)
+	{
+		file << dx[i] << " ";
+	}
+	file.close();	
 
+	ofstream file_1("part_der_y.txt");
+	for(int i = 5*511*511; i < 6*511*511; i++)
+	{
+		file_1 << dy[i] << " ";
+	}
+	file_1.close();
+
+	ofstream file_2("part_der_z.txt");
+	for(int i = 5*511*511; i < 6*511*511; i++)
+	{
+		file_2 << dz[i] << " ";
+	}
+	file_2.close();
+*/	
 	pixel.clear();
 
-/************************ Tensor field calculation *************************/
+/*********************** Tensor field calculation *************************/
 
 	start = chrono::high_resolution_clock::now();
 
@@ -233,13 +262,124 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to calculate Tensor field		: " << time.count()*1000 << " ms" << endl;
-	
+
+	ofstream file_a1("tensor_field_a1.txt");
+	for(int i = 0; i < T.size(); i++)
+	{
+		file_a1 << T[i].a1 << " ";
+	}
+	file_a1.close();	
+/*
+	ofstream file_4("tensor_field_a2.txt");
+	for(int i = 5*511*511; i < 6*511*511; i++)
+	{
+		file_4 << T[i].a2 << " ";
+	}
+	file_4.close();
+	ofstream file_5("tensor_field_b2.txt");
+	for(int i = 5*511*511; i < 6*511*511; i++)
+	{
+		file_5 << T[i].b2 << " ";
+	}
+	file_5.close();
+	ofstream file_6("tensor_field_c3.txt");
+	for(int i = 5*511*511; i < 6*511*511; i++)
+	{
+		file_6 << T[i].c3 << " ";
+	}
+	file_6.close();	
+*/
 /* 	
 	int check = 0;
 	cout << T[check].a1 << " " << T[check].a2 << " " << T[check].a3 << endl;
 	cout << T[check].b1 << " " << T[check].b2 << " " << T[check].b3 << endl;
 	cout << T[check].c1 << " " << T[check].c2 << " " << T[check].c3 << endl;
 */
+// PADDING THE TENSOR FIELD FOR BLURRING
+//
+
+
+
+	int filter_size = 32;
+        if(filter_size % 2 == 0) filter_size++;
+        int half = filter_size / 2;
+
+
+	int filter_size_z = 5;
+        if(filter_size_z % 2 == 0) filter_size_z++;
+        int half_z = filter_size_z / 2;
+
+
+	width = width + 2 * half;
+        height = height + 2 * half;
+        depth = depth + 2 * half_z;
+        vector<matrix> T_pad(width * height * depth);
+
+
+	int index;
+        int local_row, local_col, local_aisle, local_width, local_height, local_index;
+	
+	start = chrono::high_resolution_clock::now();
+	for(int aisle = 0; aisle < depth; aisle++)
+        {
+                for(int row = 0; row < height; row++)
+                {
+                        for(int col = 0; col < width; col++)
+                        {
+                                index = (aisle * width * height) + (row * width) + col;
+                                local_col = col - half;
+                                local_row = row - half;
+                                local_aisle = aisle - half_z;
+                                local_width = width - 2 * half;
+                                local_height = height - 2 * half;
+                                local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+
+                                if(col >= half && col < (width - half) && row >= half && row < (height - half) && aisle >= half_z && aisle < (depth - half_z))
+                                {
+                                        T_pad[index] = T[local_index];
+                                }
+                                else if(col < half)
+                                {
+                                        local_col = (half - col);
+                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+                                        T_pad[index] = T[local_index];
+                                }
+                                else if(row < half)
+                                {
+                                        local_row = (half - row);
+                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+                                        T_pad[index] = T[local_index];
+                                }
+                                else if(col >= width - half)
+                                {
+                                        local_col = ((width - half - 1) - (col - (width - half - 1))) - half;
+                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+                                        T_pad[index] = T[local_index];
+                                }
+                                else if(row >= height - half)
+                                {
+                                        local_row = (height - half - 1) - (row - (height - half - 1)) - half;
+                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+                                        T_pad[index] = T[local_index];
+                                }
+				else if(aisle < half_z)
+                                {
+                                        local_aisle = (half_z - aisle);
+                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+                                        T_pad[index] = T[local_index];
+                                }
+                                else if(aisle >= depth - half_z)
+                                {
+                                        local_aisle = (depth - half_z - 1) - (aisle - (depth - half_z - 1)) - half_z;
+                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+                                        T_pad[index] = T[local_index];
+                                }
+                        }
+                }
+        }
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
 
 	vector<float> K;
 
@@ -247,7 +387,7 @@ int main()
 
 	K = create_kernel(1, &k_ele);
 
-/************************************************************************/
+/***********************************************************************/
 /*
 	matrix init2 = {255,0,0,0,0,0,0,0,0};
 	vector<matrix> T_new(8000, init2);
@@ -260,9 +400,9 @@ int main()
 	depth = 20;
 	width = 20;
 */
-/************************************************************************/
+/***********************************************************************/
 //print T
-/************************************************************************/
+/***********************************************************************/
 /*
 	cout << "Printing T" << endl;
 	for(int k = 0; k < 2; k++)
@@ -280,7 +420,6 @@ int main()
 	}
 	cout << endl;
 */
-/************************************************************************/
 
 
 /************************ Gaussian along X axis *************************/
@@ -289,9 +428,12 @@ int main()
 
 	start = chrono::high_resolution_clock::now();
 
+
 	vector<matrix> T_x(size,init);
 
-	for(int k = 0; k < depth; k++)
+	
+
+	for(int k = 0 ; k < depth; k++)
 	{
 		for(int j = 0; j < height; j++)
 		{
@@ -302,7 +444,7 @@ int main()
 				temp4 = 0, temp5 = 0, temp6 = 0;
 				temp7 = 0, temp8 = 0, temp9 = 0;
 
-				int index = (k*width*height) + (j*width) + i;
+			 	index = (k*width*height) + (j*width) + i;
 				for(int ref = 0; ref < k_ele; ref++)
 				{
 					temp1 += K[ref] * T[index+ref].a1;
@@ -369,7 +511,7 @@ int main()
 				temp4 = 0, temp5 = 0, temp6 = 0;
 				temp7 = 0, temp8 = 0, temp9 = 0;
 
-				int index = (k*width*height) + (j*width) + i;
+				index = (k*width*height) + (j*width) + i;
 				for(int ref = 0; ref < k_ele; ref++)
 				{
 					temp1 += K[ref] * T_x[index+(ref*width)].a1;
@@ -398,7 +540,7 @@ int main()
 
 	cout << "time taken to apply blur along Y axis		: " << time.count()*1000 << " ms" << endl;
 	
-	T_x.clear(); 					// I dont need T_x anymore
+//	T_x.clear(); 					// I dont need T_x anymore
 
 /************************************************************************/
 /*
@@ -426,6 +568,7 @@ int main()
 	K.clear();
 	K = create_kernel(1, &k_ele);	
 	
+	vector<matrix> T_z(size,init);
 //	for(auto &i : K)
 //		cout << i << " ";
 //	cout << endl << endl;	
@@ -449,7 +592,7 @@ int main()
 				temp4 = 0, temp5 = 0, temp6 = 0;
 				temp7 = 0, temp8 = 0, temp9 = 0;
 
-				int index = (k*width*height) + (j*width) + i;
+				index = (k*width*height) + (j*width) + i;
 				int index_2 = (k*new_width*new_height) + (j*new_width) + i;
 				for(int ref = 0; ref < k_ele; ref++)
 				{
@@ -460,7 +603,15 @@ int main()
 					temp6 += K[ref] * T_y[index+(ref*width*height)].b3;
 					temp9 += K[ref] * T_y[index+(ref*width*height)].c3;
 				}
-	
+				T_z[index].a1 = temp1;
+				T_z[index].a2 = temp2;
+				T_z[index].a3 = temp3;
+				T_z[index].b1 = temp2;
+				T_z[index].b2 = temp5;
+				T_z[index].b3 = temp6;
+				T_z[index].c1 = temp3;
+				T_z[index].c2 = temp6;
+				T_z[index].c3 = temp9;
 				T_m[index_2] << temp1, temp2, temp3, temp2, temp5, temp6, temp3, temp6, temp9;
 			}
 		}
@@ -473,9 +624,9 @@ int main()
 
 	cout << "time taken to apply blur along Z axis		: " << time.count() * 1000<< " ms" << endl;
 	
-	T_y.clear();					// I dont need T_y anymore
+//	T_y.clear();					// I dont need T_y anymore
 
-/************************** Calc Evec *********************************/
+/************************** Calc Evec *********************************
 
 	eigen_vectors eigen_init = {0,0,0};
 
@@ -497,9 +648,17 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 	cout << "time taken to calcuate Eigen			: " << time.count() * 1000 << " ms" << endl;
 //	cout << Evec[0].a <<" "<<Evec[0].b <<" "<<Evec[0].c;
-		
-/************************************************************************/
-
+	ofstream testfile("Evec_vectors");
+//	for(int i = 0; i <= Evec.size(); i++)
+//	{
+///		testfile >> Evec[i].a;
+//		testfile >> Evec[i].b;
+//		testfile >> Evec[i].c;
+//	}
+	char *ptr = (char *)&Evec[0].a;
+	testfile.write(ptr, 3 * sizeof(Evec.size()));
+*************************************************************************
+	
 	vector<float> vec_length(new_size, 0);
 	vector<eigen_vectors> norm_Evec(new_size, eigen_init);
 
@@ -523,7 +682,106 @@ int main()
 	stop = chrono::high_resolution_clock::now();
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 	cout << "time taken for post calculation after Eigen	: " << time.count() * 1000 << " ms" << endl;
+*/
+//	file("test.txt");
+//	for(int i = 0; i < T.size(); i++)
+//	{
+//		file << T[i].a1 << " ";
+//	}
+/*
+	int filter = 32;	
+	start = chrono::high_resolution_clock::now();
+
+	vector<matrix> T_x(size,init);
+
+	for(int i = 0; i < size; i++)
+	{
+		T_x[i].a1 = T[i].a1/filter;
+		T_x[i].a2 = T[i].a2/filter;
+		T_x[i].a3 = T[i].a3/filter;
+		T_x[i].b1 = T[i].b1/filter;
+		T_x[i].b2 = T[i].b2/filter;
+		T_x[i].b3 = T[i].b3/filter;
+		T_x[i].c1 = T[i].c1/filter;
+		T_x[i].c2 = T[i].c2/filter;
+		T_x[i].c3 = T[i].c3/filter;
+	}
+
+	stop = chrono::high_resolution_clock::now();
+
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to apply blur along X axis		: " << time.count()* 1000 << " ms" << endl;
+	start = chrono::high_resolution_clock::now();
+
+	vector<matrix> T_y(size,init);
+
+	for(int i = 0; i < size; i++)
+	{
+		T_y[i].a1 = T_x[i].a1/filter;
+		T_y[i].a2 = T_x[i].a2/filter;
+		T_y[i].a3 = T_x[i].a3/filter;
+		T_y[i].b1 = T_x[i].b1/filter;
+		T_y[i].b2 = T_x[i].b2/filter;
+		T_y[i].b3 = T_x[i].b3/filter;
+		T_y[i].c1 = T_x[i].c1/filter;
+		T_y[i].c2 = T_x[i].c2/filter;
+		T_y[i].c3 = T_x[i].c3/filter;
+	}
+
+	stop = chrono::high_resolution_clock::now();
+
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to apply blur along Y axis		: " << time.count()* 1000 << " ms" << endl;
 	
-	
+	filter = 32/4;	
+
+	vector<matrix> T_z(size,init);
+
+	for(int i = 0; i < size; i++)
+	{
+		T_z[i].a1 = T_y[i].a1/filter;
+		T_z[i].a2 = T_y[i].a2/filter;
+		T_z[i].a3 = T_y[i].a3/filter;
+		T_z[i].b1 = T_y[i].b1/filter;
+		T_z[i].b2 = T_y[i].b2/filter;
+		T_z[i].b3 = T_y[i].b3/filter;
+		T_z[i].c1 = T_y[i].c1/filter;
+		T_z[i].c2 = T_y[i].c2/filter;
+		T_z[i].c3 = T_y[i].c3/filter;
+	}
+
+	stop = chrono::high_resolution_clock::now();
+
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to apply blur along Z axis		: " << time.count()* 1000 << " ms" << endl;
+*/
+	ofstream file_3("blur_a1.txt");
+	for(int i = 3*511*511; i < 4*511*511; i++)
+	{
+		file_3 << T_y[i].a1 << " ";
+	}
+	file_3.close();
+	ofstream file_4("blur_a2.txt");
+	for(int i = 3*511*511; i < 4*511*511; i++)
+	{
+		file_4 << T_y[i].a2 << " ";
+	}
+	file_4.close();
+	ofstream file_5("blur_b2.txt");
+	for(int i = 3*511*511; i < 4*511*511; i++)
+	{
+		file_5 << T_y[i].b2 << " ";
+	}
+	file_5.close();
+	ofstream file_6("blur_c3.txt");
+	for(int i = 3*511*511; i < 4*511*511; i++)
+	{
+		file_6 << T_y[i].c3 << " ";
+	}
+	file_6.close();	
+
 	return 0;
 }
