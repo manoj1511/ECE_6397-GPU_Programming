@@ -380,15 +380,22 @@ int main()
 	stop = chrono::high_resolution_clock::now();
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
+	cout << "time taken to apply Padding			: " << time.count()*1000 << " ms" << endl;
 
+
+
+
+
+
+
+
+/*
 	vector<float> K;
 
 	int k_ele = 0;
 
 	K = create_kernel(1, &k_ele);
 
-/***********************************************************************/
-/*
 	matrix init2 = {255,0,0,0,0,0,0,0,0};
 	vector<matrix> T_new(8000, init2);
 	T.clear();
@@ -423,7 +430,7 @@ int main()
 
 
 /************************ Gaussian along X axis *************************/
-
+/*
 	float temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp8, temp9;
 
 	start = chrono::high_resolution_clock::now();
@@ -474,8 +481,6 @@ int main()
 	cout << "time taken to apply blur along X axis		: " << time.count()* 1000 << " ms" << endl;
 	
 
-/************************************************************************/
-/*
 	cout << "Printing T_x" << endl;
 	for(int k = 0; k < 2; k++)
 	{
@@ -492,10 +497,9 @@ int main()
 	}
 	cout << endl;
 */
-/************************************************************************/
 
 /************************ Gaussian along Y axis *************************/
-
+/*
 	start = chrono::high_resolution_clock::now();
 	
 	vector<matrix> T_y(size,init);
@@ -542,8 +546,6 @@ int main()
 	
 //	T_x.clear(); 					// I dont need T_x anymore
 
-/************************************************************************/
-/*
 	cout << "Printing T_y" << endl;
 	for(int k = 0; k < 2; k++)
 	{
@@ -564,7 +566,7 @@ int main()
 
 
 /************************* Gaussian along Z axis *************************/
-
+/*
 	K.clear();
 	K = create_kernel(1, &k_ele);	
 	
@@ -625,7 +627,7 @@ int main()
 	cout << "time taken to apply blur along Z axis		: " << time.count() * 1000<< " ms" << endl;
 	
 //	T_y.clear();					// I dont need T_y anymore
-
+*/
 /************************** Calc Evec *********************************
 
 	eigen_vectors eigen_init = {0,0,0};
