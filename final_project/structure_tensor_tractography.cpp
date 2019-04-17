@@ -295,11 +295,10 @@ int main()
 	cout << T[check].b1 << " " << T[check].b2 << " " << T[check].b3 << endl;
 	cout << T[check].c1 << " " << T[check].c2 << " " << T[check].c3 << endl;
 */
+
+
 // PADDING THE TENSOR FIELD FOR BLURRING
 //
-
-
-
 	int filter_size = 32;
         if(filter_size % 2 == 0) filter_size++;
         int half = filter_size / 2;
@@ -336,43 +335,84 @@ int main()
 
                                 if(col >= half && col < (width - half) && row >= half && row < (height - half) && aisle >= half_z && aisle < (depth - half_z))
                                 {
-                                        T_pad[index] = T[local_index];
+                                        T_pad[index].a1 = T[local_index].a1;
+                                        T_pad[index].a2 = T[local_index].a2;
+                                        T_pad[index].a3 = T[local_index].a3;
+                                        T_pad[index].b2 = T[local_index].b2;
+                                        T_pad[index].b3 = T[local_index].b3;
+                                        T_pad[index].c3 = T[local_index].c3;
                                 }
                                 else if(col < half)
                                 {
                                         local_col = (half - col);
                                         local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                        T_pad[index] = T[local_index];
+                                  
+                                        T_pad[index].a1 = T[local_index].a1;
+                                        T_pad[index].a2 = T[local_index].a2;
+                                        T_pad[index].a3 = T[local_index].a3;
+                                        T_pad[index].b2 = T[local_index].b2;
+                                        T_pad[index].b3 = T[local_index].b3;
+                                        T_pad[index].c3 = T[local_index].c3;
                                 }
                                 else if(row < half)
                                 {
                                         local_row = (half - row);
                                         local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                        T_pad[index] = T[local_index];
+                                 
+                                        T_pad[index].a1 = T[local_index].a1;
+                                        T_pad[index].a2 = T[local_index].a2;
+                                        T_pad[index].a3 = T[local_index].a3;
+                                        T_pad[index].b2 = T[local_index].b2;
+                                        T_pad[index].b3 = T[local_index].b3;
+                                        T_pad[index].c3 = T[local_index].c3; 
                                 }
                                 else if(col >= width - half)
                                 {
                                         local_col = ((width - half - 1) - (col - (width - half - 1))) - half;
                                         local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                        T_pad[index] = T[local_index];
+                                 
+                                        T_pad[index].a1 = T[local_index].a1;
+                                        T_pad[index].a2 = T[local_index].a2;
+                                        T_pad[index].a3 = T[local_index].a3;
+                                        T_pad[index].b2 = T[local_index].b2;
+                                        T_pad[index].b3 = T[local_index].b3;
+                                        T_pad[index].c3 = T[local_index].c3;  
                                 }
                                 else if(row >= height - half)
                                 {
                                         local_row = (height - half - 1) - (row - (height - half - 1)) - half;
                                         local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                        T_pad[index] = T[local_index];
+                                 
+                                        T_pad[index].a1 = T[local_index].a1;
+                                        T_pad[index].a2 = T[local_index].a2;
+                                        T_pad[index].a3 = T[local_index].a3;
+                                        T_pad[index].b2 = T[local_index].b2;
+                                        T_pad[index].b3 = T[local_index].b3;
+                                        T_pad[index].c3 = T[local_index].c3;
                                 }
 				else if(aisle < half_z)
                                 {
                                         local_aisle = (half_z - aisle);
                                         local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                        T_pad[index] = T[local_index];
+                                 
+                                        T_pad[index].a1 = T[local_index].a1;
+                                        T_pad[index].a2 = T[local_index].a2;
+                                        T_pad[index].a3 = T[local_index].a3;
+                                        T_pad[index].b2 = T[local_index].b2;
+                                        T_pad[index].b3 = T[local_index].b3;
+                                        T_pad[index].c3 = T[local_index].c3; 
                                 }
                                 else if(aisle >= depth - half_z)
                                 {
                                         local_aisle = (depth - half_z - 1) - (aisle - (depth - half_z - 1)) - half_z;
                                         local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                        T_pad[index] = T[local_index];
+                                 
+                                        T_pad[index].a1 = T[local_index].a1;
+                                        T_pad[index].a2 = T[local_index].a2;
+                                        T_pad[index].a3 = T[local_index].a3;
+                                        T_pad[index].b2 = T[local_index].b2;
+                                        T_pad[index].b3 = T[local_index].b3;
+                                        T_pad[index].c3 = T[local_index].c3;  
                                 }
                         }
                 }
@@ -383,11 +423,135 @@ int main()
 	cout << "time taken to apply Padding			: " << time.count()*1000 << " ms" << endl;
 
 
+// Apply the filter along X axis
+	
+	vector<matrix> T_x(width * height * depth);
+	float temp_a1, temp_a2, temp_a3, temp_b2, temp_b3, temp_c3;
+
+	start = chrono::high_resolution_clock::now();
+	for(int aisle = 0; aisle < depth; aisle++)
+        {
+                for(int row = 0; row < height; row++)
+                {
+                        for(int col = 0; col <= width - filter_size; col++)
+                        {
+                                temp_a1 = 0, temp_a2 = 0, temp_a3 = 0, temp_b2 = 0, temp_b3 = 0, temp_c3 = 0;
+                                index = (aisle * width * height) + (row * width) + col;
+                                local_col = col + half;
+                                local_row = row;
+                                local_aisle = aisle;
+                                local_width = width;
+                                local_height = height;
+                                local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+
+                                for(int ref = 0; ref < filter_size; ref++)
+                                {
+                                        temp_a1 += T_pad[index + ref].a1;
+                                        temp_a2 += T_pad[index + ref].a2;
+                                        temp_a3 += T_pad[index + ref].a3;
+                                        temp_b2 += T_pad[index + ref].b2;
+                                        temp_b3 += T_pad[index + ref].b3;
+                                        temp_c3 += T_pad[index + ref].c3;
+                                }
+                                T_x[local_index].a1 = temp_a1 / filter_size;
+                                T_x[local_index].a2 = temp_a2 / filter_size;
+                                T_x[local_index].a3 = temp_a3 / filter_size;
+                                T_x[local_index].b2 = temp_b2 / filter_size;
+                                T_x[local_index].b3 = temp_b3 / filter_size;
+                                T_x[local_index].c3 = temp_c3 / filter_size;
+                        }
+                }
+        }
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to apply blur along x axis		: " << time.count()*1000 << " ms" << endl;
+
+// Apply the filter along X axis
+
+	vector<matrix> T_y(width * height * depth);
+	start = chrono::high_resolution_clock::now();
+	for(int aisle = 0; aisle < depth; aisle++)
+        {
+                for(int row = 0; row <= height - filter_size; row++)
+                {
+                        for(int col = 0; col <= width; col++)
+                        {
+                                temp_a1 = 0, temp_a2 = 0, temp_a3 = 0, temp_b2 = 0, temp_b3 = 0, temp_c3 = 0;
+                                index = (aisle * width * height) + (row * width) + col;
+                                local_col = col;
+                                local_row = row +  half;
+                                local_aisle = aisle;
+                                local_width = width;
+                                local_height = height;
+                                local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+
+                                for(int ref = 0; ref < filter_size; ref++)
+                                {
+                                        temp_a1 += T_x[index + (ref * width)].a1;
+                              		temp_a2 += T_x[index + (ref * width)].a2;
+                              		temp_a3 += T_x[index + (ref * width)].a3;
+                              		temp_b2 += T_x[index + (ref * width)].b2;
+                                     	temp_b3 += T_x[index + (ref * width)].b3;
+                                     	temp_c3 += T_x[index + (ref * width)].c3;
+				}
+				T_y[local_index].a1 = temp_a1 / filter_size;
+                                T_y[local_index].a2 = temp_a2 / filter_size;
+                                T_y[local_index].a3 = temp_a3 / filter_size;
+                                T_y[local_index].b2 = temp_b2 / filter_size;
+                                T_y[local_index].b3 = temp_b3 / filter_size;
+                                T_y[local_index].c3 = temp_c3 / filter_size;
+                        }
+                }
+        }
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to apply blur along y axis		: " << time.count()*1000 << " ms" << endl;
 
 
+// Apply the filter along X axis
 
+	vector<matrix> T_z(width * height * depth);
 
+	start = chrono::high_resolution_clock::now();
+        for(int aisle = 0; aisle <= depth - filter_size_z; aisle++)
+        {
+                for(int row = 0; row <= height; row++)
+                {
+                        for(int col = 0; col <= width; col++)
+                        {
+                                float sum = 0;
+                                index = (aisle * width * height) + (row * width) + col;
+                                local_col = col;
+                                local_row = row;
+                                local_aisle = aisle + half_z;
+                                local_width = width;
+                                local_height = height;
+                                local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
 
+                                for(int ref = 0; ref < filter_size_z; ref++)
+                                {
+                                	temp_a1 += T_y[index + (ref * width * height)].a1;
+                                        temp_a2 += T_y[index + (ref * width * height)].a2;
+                                        temp_a3 += T_y[index + (ref * width * height)].a3; 
+                                        temp_b2 += T_y[index + (ref * width * height)].b2;
+                                        temp_b3 += T_y[index + (ref * width * height)].b3;
+                                        temp_c3 += T_y[index + (ref * width * height)].c3;
+				}
+				T_z[local_index].a1 = temp_a1 / filter_size;
+                                T_z[local_index].a2 = temp_a2 / filter_size;
+                                T_z[local_index].a3 = temp_a3 / filter_size;
+                                T_z[local_index].b2 = temp_b2 / filter_size;
+                                T_z[local_index].b3 = temp_b3 / filter_size;
+                                T_z[local_index].c3 = temp_c3 / filter_size;
+                        }
+                }
+        }
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to apply blur along z axis		: " << time.count()*1000 << " ms" << endl;
 
 /*
 	vector<float> K;
@@ -760,6 +924,7 @@ int main()
 
 	cout << "time taken to apply blur along Z axis		: " << time.count()* 1000 << " ms" << endl;
 */
+/*
 	ofstream file_3("blur_a1.txt");
 	for(int i = 3*511*511; i < 4*511*511; i++)
 	{
@@ -784,6 +949,6 @@ int main()
 		file_6 << T_y[i].c3 << " ";
 	}
 	file_6.close();	
-
+*/
 	return 0;
 }
