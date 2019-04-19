@@ -304,7 +304,7 @@ int main()
         int half = filter_size / 2;
 
 
-	int filter_size_z = 5;
+	int filter_size_z = 7;
         if(filter_size_z % 2 == 0) filter_size_z++;
         int half_z = filter_size_z / 2;
 
@@ -422,6 +422,7 @@ int main()
 
 	cout << "time taken to apply Padding			: " << time.count()*1000 << " ms" << endl;
 
+	T.clear();
 
 // Apply the filter along X axis
 	
@@ -467,7 +468,16 @@ int main()
 
 	cout << "time taken to apply blur along x axis		: " << time.count()*1000 << " ms" << endl;
 
-// Apply the filter along X axis
+	ofstream file_T_x("T_x.txt");
+	for(int i = 0; i < T_x.size(); i++)
+	{
+		file_T_x << T_x[i].a1 << " ";
+	}
+	file_T_x.close();
+
+	T_pad.clear();
+
+// Apply the filter along Y axis
 
 	vector<matrix> T_y(width * height * depth);
 	start = chrono::high_resolution_clock::now();
@@ -480,7 +490,7 @@ int main()
                                 temp_a1 = 0, temp_a2 = 0, temp_a3 = 0, temp_b2 = 0, temp_b3 = 0, temp_c3 = 0;
                                 index = (aisle * width * height) + (row * width) + col;
                                 local_col = col;
-                                local_row = row +  half;
+                                local_row = row + half;
                                 local_aisle = aisle;
                                 local_width = width;
                                 local_height = height;
@@ -509,8 +519,16 @@ int main()
 
 	cout << "time taken to apply blur along y axis		: " << time.count()*1000 << " ms" << endl;
 
+	ofstream file_T_y("T_y.txt");
+	for(int i = 0; i < T_y.size(); i++)
+	{
+		file_T_y << T_y[i].a1 << " ";
+	}
+	file_T_y.close();
 
-// Apply the filter along X axis
+	T_x.clear();
+
+// Apply the filter along Z axis
 
 	vector<matrix> T_z(width * height * depth);
 
@@ -520,8 +538,8 @@ int main()
                 for(int row = 0; row <= height; row++)
                 {
                         for(int col = 0; col <= width; col++)
-                        {
-                                float sum = 0;
+                        {	
+                                temp_a1 = 0, temp_a2 = 0, temp_a3 = 0, temp_b2 = 0, temp_b3 = 0, temp_c3 = 0;
                                 index = (aisle * width * height) + (row * width) + col;
                                 local_col = col;
                                 local_row = row;
@@ -539,12 +557,12 @@ int main()
                                         temp_b3 += T_y[index + (ref * width * height)].b3;
                                         temp_c3 += T_y[index + (ref * width * height)].c3;
 				}
-				T_z[local_index].a1 = temp_a1 / filter_size;
-                                T_z[local_index].a2 = temp_a2 / filter_size;
-                                T_z[local_index].a3 = temp_a3 / filter_size;
-                                T_z[local_index].b2 = temp_b2 / filter_size;
-                                T_z[local_index].b3 = temp_b3 / filter_size;
-                                T_z[local_index].c3 = temp_c3 / filter_size;
+				T_z[local_index].a1 = temp_a1 / filter_size_z;
+                                T_z[local_index].a2 = temp_a2 / filter_size_z;
+                                T_z[local_index].a3 = temp_a3 / filter_size_z;
+                                T_z[local_index].b2 = temp_b2 / filter_size_z;
+                                T_z[local_index].b3 = temp_b3 / filter_size_z;
+                                T_z[local_index].c3 = temp_c3 / filter_size_z;
                         }
                 }
         }
@@ -553,6 +571,82 @@ int main()
 
 	cout << "time taken to apply blur along z axis		: " << time.count()*1000 << " ms" << endl;
 
+	ofstream file_T_z("T_z.txt");
+	for(int i = 0; i < T_z.size(); i++)
+	{
+		file_T_z << T_z[i].a1 << " ";
+	}
+	file_T_z.close();
+
+	T_y.clear();
+
+// Remove the padding
+
+	vector< Eigen::Matrix3f > T_m((width - 2 * half) * (height - 2 * half) * (depth - 2 * half_z));
+
+	start = chrono::high_resolution_clock::now();
+	for(int aisle = half_z; aisle < depth - half_z; aisle++)
+	{
+		for(int row = half; row < height - half; row++)
+		{
+			for(int col = half; col < width - half; col++)
+			{
+				local_col = col - half;
+				local_row = row - half;
+				local_aisle = aisle - half_z;
+				local_width = width - 2 * half;
+				local_height = height - 2 * half;
+				local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
+				index = (aisle * width * height) + (row * width) + col;
+
+				T_m[local_index] << T_z[index].a1, T_z[index].a2, T_z[index].a3, 
+						    T_z[index].a2, T_z[index].b2, T_z[index].b3, 
+						    T_z[index].a3, T_z[index].b3, T_z[index].c3;
+			}
+		}
+	}	
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to remove padding 			: " << time.count()*1000 << " ms" << endl;
+	cout << T_m[0] << endl;
+	T_z.clear();
+
+// Compute Eigen Vectors
+
+	width = width - 2 * half;
+	height = height - 2 * half;
+	depth = depth - 2 * half_z;
+
+	eigen_vectors eigen_init = {0,0,0};
+	vector<eigen_vectors>Evec(width * height * depth, eigen_init);
+
+	SelfAdjointEigenSolver<Matrix3f> handle;
+
+	start = chrono::high_resolution_clock::now();
+	for (int ii = 0; ii < Evec.size(); ii++)	
+	{
+		handle.computeDirect(T_m[ii]);
+		Eigen::Vector3f::Map(&Evec[ii].a) = handle.eigenvectors().col(0);
+	}
+	stop = chrono::high_resolution_clock::now();
+	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+
+	cout << "time taken to calculate eigen vector		: " << time.count()*1000 << " ms" << endl;
+	
+	ofstream Evec_file("Evec_vectors");
+	char *ptr = (char *)&Evec[0].a;
+	Evec_file.write(ptr, 3 * width * height * depth * sizeof(float));
+	Evec_file.close();
+
+	cout <<  "T_m[0] is :" << endl;
+	cout << T_m[0] << endl;
+	cout << "-------------------" << endl << endl; 
+	
+	handle.computeDirect(T_m[0]);
+	cout << handle.eigenvalues() << endl<< endl;
+	cout << handle.eigenvectors() << endl;
+	T_m.clear();
 /*
 	vector<float> K;
 
@@ -949,6 +1043,21 @@ int main()
 		file_6 << T_y[i].c3 << " ";
 	}
 	file_6.close();	
+*/
+/*
+	ofstream file_6("T_m_a1.txt");
+	for(int i = 0; i < T_m.size(); i++)
+	{
+		file_6 << T_m[i].col(0).row(0) << " ";
+	}
+	file_6.close();
+
+	ofstream file_7("T_no_pad.txt");
+	for(int i = 0; i < T_no_pad.size(); i++)
+	{
+		file_7 << T_no_pad[i].a1 << " "; 
+	}
+	file_7.close();
 */
 	return 0;
 }
