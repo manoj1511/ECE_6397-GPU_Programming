@@ -1,23 +1,27 @@
 // Author : Manoj Kumar Cebol Sundarrajan
 // Organization : University of Houston
 
-#include<iostream>
-#include<vector>
-#include<glob.h>
-#include<string>
-#include<cstring>
-#include<sstream>
-#include<stdexcept>
-#include"CImg.h"
+#include <iostream>
+#include <vector>
+#include <glob.h>
+#include <string>
+#include <cstring>
+#include <sstream>
+#include <stdexcept>
+#include "CImg.h"
 #ifdef Success
   #undef Success
 #endif
-#include<chrono>
+#include <chrono>
 //#include<mkl_lapacke.h>
 //#define EIGEN_USE_MKL_ALL
-#include<Eigen>
-#include<cmath>
-#include<fstream>
+#include <Eigen>
+#include <cmath>
+#include <fstream>
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
+
 #define pi 3.141
 #define mu 0
 
@@ -39,11 +43,15 @@ struct eigen_vectors
 	float a, b, c;
 };
 
-struct pixel
+struct pixels
 {
 	float r, g, b;
 };
 
+struct pixels_2
+{
+	size_t r, g, b;
+};
 vector<float> create_kernel(const int s, int *k_ele)
 {
 
@@ -154,7 +162,7 @@ int main()
 	float h = 1;
 	float h2 = 4;
 	unsigned int size = pixel.size();
-	cout << "files	: " << depth << endl;
+//	cout << "files	: " << depth << endl;
 
 	start = chrono::high_resolution_clock::now();
 
@@ -234,9 +242,6 @@ int main()
 	}
 	file_2.close();
 */	
-	pixel.clear();
-
-/*********************** Tensor field calculation *************************/
 
 	start = chrono::high_resolution_clock::now();
 
@@ -609,7 +614,6 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to remove padding 			: " << time.count()*1000 << " ms" << endl;
-	cout << T_m[0] << endl;
 	T_z.clear();
 
 // Compute Eigen Vectors
@@ -621,11 +625,13 @@ int main()
 	eigen_vectors eigen_init = {0,0,0};
 	vector<eigen_vectors>Evec(width * height * depth, eigen_init);
 
-	SelfAdjointEigenSolver<Matrix3f> handle;
+//	SelfAdjointEigenSolver<Matrix3f> handle;
 
 	start = chrono::high_resolution_clock::now();
+	#pragma omp parallel for
 	for (int ii = 0; ii < Evec.size(); ii++)	
 	{
+		SelfAdjointEigenSolver<Matrix3f> handle;
 		handle.computeDirect(T_m[ii]);
 		Eigen::Vector3f::Map(&Evec[ii].a) = handle.eigenvectors().col(0);
 	}
@@ -633,11 +639,20 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to calculate eigen vector		: " << time.count()*1000 << " ms" << endl;
-	
+
+/*
 	ofstream Evec_file("Evec_vectors");
 	char *ptr = (char *)&Evec[0].a;
 	Evec_file.write(ptr, 3 * width * height * depth * sizeof(float));
 	Evec_file.close();
+
+	ofstream vector("vectors.txt");
+	
+	for(int i = 0; i < Evec.size(); i++)
+	{
+		vector << Evec[i].a << " " << Evec[i].b << " " << Evec[i].c << " ";
+	}
+	vector.close();
 
 	cout <<  "T_m[0] is :" << endl;
 	cout << T_m[0] << endl;
@@ -646,418 +661,41 @@ int main()
 	handle.computeDirect(T_m[0]);
 	cout << handle.eigenvalues() << endl<< endl;
 	cout << handle.eigenvectors() << endl;
+*/
 	T_m.clear();
-/*
-	vector<float> K;
 
-	int k_ele = 0;
+// Create a color Image
 
-	K = create_kernel(1, &k_ele);
-
-	matrix init2 = {255,0,0,0,0,0,0,0,0};
-	vector<matrix> T_new(8000, init2);
-	T.clear();
-	T = T_new;
-	vector<matrix> T_x(8000,init);
-	vector<matrix> T_y(8000,init);
-	vector<matrix> T_z(8000,init);
-	height = 20; 
-	depth = 20;
-	width = 20;
-*/
-/***********************************************************************/
-//print T
-/***********************************************************************/
-/*
-	cout << "Printing T" << endl;
-	for(int k = 0; k < 2; k++)
-	{
-		for(int j = 0; j < 20; j++)
-		{	
-			for(int i = 0; i < 20; i++)
-			{
-				int index = (k*width*height) + (j*width) + i;
-				cout << T[index].a1 << " ";
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
-	cout << endl;
-*/
-
-
-/************************ Gaussian along X axis *************************/
-/*
-	float temp1, temp2, temp3, temp4, temp5, temp6, temp7, temp8, temp9;
+	vector <float> 		l     		(width * height * depth, 0);
+	vector <pixels>		nv    		(width * height * depth	  );
+	vector <float> 	 	alpha 		(width * height * depth, 0);
+//	vector <pixels_2>	f_image    	(width * height * depth	  );
 
 	start = chrono::high_resolution_clock::now();
-
-
-	vector<matrix> T_x(size,init);
-
-	
-
-	for(int k = 0 ; k < depth; k++)
+	for(int i = 0; i < l.size(); i++)
 	{
-		for(int j = 0; j < height; j++)
-		{
-			for(int i = 0; i <= width-k_ele; i++)
-			{
+		l[i] = sqrt( (pow(Evec[i].a,2) + pow(Evec[i].b,2) + pow(Evec[i].c,2) ));
 
-				temp1 = 0, temp2 = 0, temp3 = 0;
-				temp4 = 0, temp5 = 0, temp6 = 0;
-				temp7 = 0, temp8 = 0, temp9 = 0;
-
-			 	index = (k*width*height) + (j*width) + i;
-				for(int ref = 0; ref < k_ele; ref++)
-				{
-					temp1 += K[ref] * T[index+ref].a1;
-					temp2 += K[ref] * T[index+ref].a2;
-					temp3 += K[ref] * T[index+ref].a3;
-					temp5 += K[ref] * T[index+ref].b2;
-					temp6 += K[ref] * T[index+ref].b3;
-					temp9 += K[ref] * T[index+ref].c3;
-				}
-				T_x[index].a1 = temp1;
-				T_x[index].a2 = temp2;
-				T_x[index].a3 = temp3;
-				T_x[index].b1 = T_x[index].a2;
-				T_x[index].b2 = temp5;
-				T_x[index].b3 = temp6;
-				T_x[index].c1 = T_x[index].a3;
-				T_x[index].c2 = T_x[index].b3;
-				T_x[index].c3 = temp9;
-			}
-		}
-	}
-
-	stop = chrono::high_resolution_clock::now();
-
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-
-	cout << "time taken to apply blur along X axis		: " << time.count()* 1000 << " ms" << endl;
-	
-
-	cout << "Printing T_x" << endl;
-	for(int k = 0; k < 2; k++)
-	{
-		for(int j = 0; j < 20; j++)
-		{	
-			for(int i = 0; i < 20; i++)
-			{
-				int index = (k*width*height) + (j*width) + i;
-				cout << T_x[index].a1 << " ";
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
-	cout << endl;
-*/
-
-/************************ Gaussian along Y axis *************************/
-/*
-	start = chrono::high_resolution_clock::now();
-	
-	vector<matrix> T_y(size,init);
-
-	for(int k = 0; k < depth; k++)
-	{
-		for(int j = 0; j <= height-k_ele; j++)
-		{
-			for(int i = 0; i <= width-k_ele; i++)
-			{
-	
-				temp1 = 0, temp2 = 0, temp3 = 0;
-				temp4 = 0, temp5 = 0, temp6 = 0;
-				temp7 = 0, temp8 = 0, temp9 = 0;
-
-				index = (k*width*height) + (j*width) + i;
-				for(int ref = 0; ref < k_ele; ref++)
-				{
-					temp1 += K[ref] * T_x[index+(ref*width)].a1;
-					temp2 += K[ref] * T_x[index+(ref*width)].a2;
-					temp3 += K[ref] * T_x[index+(ref*width)].a3;
-					temp5 += K[ref] * T_x[index+(ref*width)].b2;
-					temp6 += K[ref] * T_x[index+(ref*width)].b3;
-					temp9 += K[ref] * T_x[index+(ref*width)].c3;
-				}
-				T_y[index].a1 = temp1;
-				T_y[index].a2 = temp2;
-				T_y[index].a3 = temp3;
-				T_y[index].b1 = T_y[index].a2; 
-				T_y[index].b2 = temp5;
-				T_y[index].b3 = temp6;
-				T_y[index].c1 = T_y[index].a3;  
-				T_y[index].c2 = T_y[index].b3; 
-				T_y[index].c3 = temp9;
-			}
-		}
-	}
-
-	stop = chrono::high_resolution_clock::now();
-
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-
-	cout << "time taken to apply blur along Y axis		: " << time.count()*1000 << " ms" << endl;
-	
-//	T_x.clear(); 					// I dont need T_x anymore
-
-	cout << "Printing T_y" << endl;
-	for(int k = 0; k < 2; k++)
-	{
-		for(int j = 0; j < 20; j++)
-		{	
-			for(int i = 0; i < 20; i++)
-			{
-				int index = (k*width*height) + (j*width) + i;
-				cout << T_y[index].a1 << " ";
-			}
-			cout << endl;
-		}
-		cout << endl;
-	}
-	cout << endl;
-*/
-/************************************************************************/
-
-
-/************************* Gaussian along Z axis *************************/
-/*
-	K.clear();
-	K = create_kernel(1, &k_ele);	
-	
-	vector<matrix> T_z(size,init);
-//	for(auto &i : K)
-//		cout << i << " ";
-//	cout << endl << endl;	
-
-	start = chrono::high_resolution_clock::now();
-
-	int new_width  = width  - k_ele;
-	int new_height = height - k_ele;
-	int new_depth  = depth  - k_ele;
-	int new_size   = new_width * new_height * new_depth;
-
-	vector< Eigen::Matrix3f > T_m(new_size);	
-
-	for(int k = 0; k < new_depth; k++)
-	{
-		for(int j = 0; j < new_height; j++)
-		{
-			for(int i = 0; i < new_width; i++)
-			{
-				temp1 = 0, temp2 = 0, temp3 = 0;
-				temp4 = 0, temp5 = 0, temp6 = 0;
-				temp7 = 0, temp8 = 0, temp9 = 0;
-
-				index = (k*width*height) + (j*width) + i;
-				int index_2 = (k*new_width*new_height) + (j*new_width) + i;
-				for(int ref = 0; ref < k_ele; ref++)
-				{
-					temp1 += K[ref] * T_y[index+(ref*width*height)].a1;
-					temp2 += K[ref] * T_y[index+(ref*width*height)].a2;
-					temp3 += K[ref] * T_y[index+(ref*width*height)].a3;
-					temp5 += K[ref] * T_y[index+(ref*width*height)].b2;
-					temp6 += K[ref] * T_y[index+(ref*width*height)].b3;
-					temp9 += K[ref] * T_y[index+(ref*width*height)].c3;
-				}
-				T_z[index].a1 = temp1;
-				T_z[index].a2 = temp2;
-				T_z[index].a3 = temp3;
-				T_z[index].b1 = temp2;
-				T_z[index].b2 = temp5;
-				T_z[index].b3 = temp6;
-				T_z[index].c1 = temp3;
-				T_z[index].c2 = temp6;
-				T_z[index].c3 = temp9;
-				T_m[index_2] << temp1, temp2, temp3, temp2, temp5, temp6, temp3, temp6, temp9;
-			}
-		}
-	}
-
-
-	stop = chrono::high_resolution_clock::now();
-
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-
-	cout << "time taken to apply blur along Z axis		: " << time.count() * 1000<< " ms" << endl;
-	
-//	T_y.clear();					// I dont need T_y anymore
-*/
-/************************** Calc Evec *********************************
-
-	eigen_vectors eigen_init = {0,0,0};
-
-	vector<eigen_vectors>Evec(new_size, eigen_init);
-
-	cout << "Calculating Eigen "<<endl;	
-
-	start = chrono::high_resolution_clock::now();
-
-	SelfAdjointEigenSolver<Matrix3f> handle;
-
-	for (int ii = 0; ii < new_size; ii++)	
-	{
-		handle.computeDirect(T_m[ii]);
-		Eigen::Vector3f::Map(&Evec[ii].a) = handle.eigenvectors().col(0);
-	}
-
-	stop = chrono::high_resolution_clock::now();
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-	cout << "time taken to calcuate Eigen			: " << time.count() * 1000 << " ms" << endl;
-//	cout << Evec[0].a <<" "<<Evec[0].b <<" "<<Evec[0].c;
-	ofstream testfile("Evec_vectors");
-//	for(int i = 0; i <= Evec.size(); i++)
-//	{
-///		testfile >> Evec[i].a;
-//		testfile >> Evec[i].b;
-//		testfile >> Evec[i].c;
-//	}
-	char *ptr = (char *)&Evec[0].a;
-	testfile.write(ptr, 3 * sizeof(Evec.size()));
-*************************************************************************
-	
-	vector<float> vec_length(new_size, 0);
-	vector<eigen_vectors> norm_Evec(new_size, eigen_init);
-
-	float temp1a = 0.0f;
-	float temp2a = 0.0f;
-	float temp3a = 0.0f;
-	start = chrono::high_resolution_clock::now();
-	for(int i = 0; i < new_size; i++)
-	{
-		temp1a = pow(Evec[i].a,2);
-		temp2a = pow(Evec[i].b,2);
-		temp3a = pow(Evec[i].c,2);
-		vec_length[i] = sqrt(temp1+temp2+temp3);
-	}
-	for(int i = 0; i < new_size; i++)
-	{
-		norm_Evec[i].a = Evec[i].a / vec_length[i];
-		norm_Evec[i].b = Evec[i].b / vec_length[i];
-		norm_Evec[i].c = Evec[i].c / vec_length[i];
+		nv[i].r = Evec[i].a / l[i]; 
+		nv[i].g = Evec[i].b / l[i]; 
+		nv[i].b = Evec[i].c / l[i];
+		
+		alpha[i] = pixel[i] / 255.0f;
+//		alpha[i] = pixel[i];
+		
+		nv[i].r = (abs(nv[i].r * alpha[i]));
+		nv[i].g = (abs(nv[i].g * alpha[i]));
+		nv[i].b = (abs(nv[i].b * alpha[i]));
 	}
 	stop = chrono::high_resolution_clock::now();
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-	cout << "time taken for post calculation after Eigen	: " << time.count() * 1000 << " ms" << endl;
-*/
-//	file("test.txt");
-//	for(int i = 0; i < T.size(); i++)
-//	{
-//		file << T[i].a1 << " ";
-//	}
-/*
-	int filter = 32;	
-	start = chrono::high_resolution_clock::now();
 
-	vector<matrix> T_x(size,init);
+	cout << "time taken to compute colour image		: " << time.count()*1000 << " ms" << endl;
 
-	for(int i = 0; i < size; i++)
-	{
-		T_x[i].a1 = T[i].a1/filter;
-		T_x[i].a2 = T[i].a2/filter;
-		T_x[i].a3 = T[i].a3/filter;
-		T_x[i].b1 = T[i].b1/filter;
-		T_x[i].b2 = T[i].b2/filter;
-		T_x[i].b3 = T[i].b3/filter;
-		T_x[i].c1 = T[i].c1/filter;
-		T_x[i].c2 = T[i].c2/filter;
-		T_x[i].c3 = T[i].c3/filter;
-	}
+// write a color image. I will import this file to python and visualize using matplotlib::imshow()
 
-	stop = chrono::high_resolution_clock::now();
-
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-
-	cout << "time taken to apply blur along X axis		: " << time.count()* 1000 << " ms" << endl;
-	start = chrono::high_resolution_clock::now();
-
-	vector<matrix> T_y(size,init);
-
-	for(int i = 0; i < size; i++)
-	{
-		T_y[i].a1 = T_x[i].a1/filter;
-		T_y[i].a2 = T_x[i].a2/filter;
-		T_y[i].a3 = T_x[i].a3/filter;
-		T_y[i].b1 = T_x[i].b1/filter;
-		T_y[i].b2 = T_x[i].b2/filter;
-		T_y[i].b3 = T_x[i].b3/filter;
-		T_y[i].c1 = T_x[i].c1/filter;
-		T_y[i].c2 = T_x[i].c2/filter;
-		T_y[i].c3 = T_x[i].c3/filter;
-	}
-
-	stop = chrono::high_resolution_clock::now();
-
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-
-	cout << "time taken to apply blur along Y axis		: " << time.count()* 1000 << " ms" << endl;
-	
-	filter = 32/4;	
-
-	vector<matrix> T_z(size,init);
-
-	for(int i = 0; i < size; i++)
-	{
-		T_z[i].a1 = T_y[i].a1/filter;
-		T_z[i].a2 = T_y[i].a2/filter;
-		T_z[i].a3 = T_y[i].a3/filter;
-		T_z[i].b1 = T_y[i].b1/filter;
-		T_z[i].b2 = T_y[i].b2/filter;
-		T_z[i].b3 = T_y[i].b3/filter;
-		T_z[i].c1 = T_y[i].c1/filter;
-		T_z[i].c2 = T_y[i].c2/filter;
-		T_z[i].c3 = T_y[i].c3/filter;
-	}
-
-	stop = chrono::high_resolution_clock::now();
-
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
-
-	cout << "time taken to apply blur along Z axis		: " << time.count()* 1000 << " ms" << endl;
-*/
-/*
-	ofstream file_3("blur_a1.txt");
-	for(int i = 3*511*511; i < 4*511*511; i++)
-	{
-		file_3 << T_y[i].a1 << " ";
-	}
-	file_3.close();
-	ofstream file_4("blur_a2.txt");
-	for(int i = 3*511*511; i < 4*511*511; i++)
-	{
-		file_4 << T_y[i].a2 << " ";
-	}
-	file_4.close();
-	ofstream file_5("blur_b2.txt");
-	for(int i = 3*511*511; i < 4*511*511; i++)
-	{
-		file_5 << T_y[i].b2 << " ";
-	}
-	file_5.close();
-	ofstream file_6("blur_c3.txt");
-	for(int i = 3*511*511; i < 4*511*511; i++)
-	{
-		file_6 << T_y[i].c3 << " ";
-	}
-	file_6.close();	
-*/
-/*
-	ofstream file_6("T_m_a1.txt");
-	for(int i = 0; i < T_m.size(); i++)
-	{
-		file_6 << T_m[i].col(0).row(0) << " ";
-	}
-	file_6.close();
-
-	ofstream file_7("T_no_pad.txt");
-	for(int i = 0; i < T_no_pad.size(); i++)
-	{
-		file_7 << T_no_pad[i].a1 << " "; 
-	}
-	file_7.close();
-*/
+	ofstream img_file("img.txt");
+	for(auto &i : nv)
+		img_file << i.r << " " << i.g << " " << i.b << " "; 
 	return 0;
 }
