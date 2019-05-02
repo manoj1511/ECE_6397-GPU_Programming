@@ -18,9 +18,7 @@
 #include <Eigen>
 #include <cmath>
 #include <fstream>
-#define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "stb_image_write.h"
-
+#include <omp.h>
 
 #define pi 3.141
 #define mu 0
@@ -48,50 +46,65 @@ struct pixels
 	float r, g, b;
 };
 
-struct pixels_2
+struct position
 {
-	size_t r, g, b;
+	float x,y,z;
 };
-vector<float> create_kernel(const int s, int *k_ele)
+
+void eulers_method(vector<position> *trace, vector<eigen_vectors> Evec,int col, int row, int aisle, int width, int height, int depth, float del_t, int n)
 {
+	position initial = {(float) col, (float) row, (float) aisle};
+	position new_pos = {0.0f, 0.0f, 0.0f};
 
-  	double coeff;
-	coeff = 1/sqrt(2*s*s*pi);				
-//	cout << "coefficient is : " << coeff << endl << endl;	
+	int init   = (int) initial.z * width * height + (int) initial.y * width + (int) initial.x;
 
-	*k_ele = 6 * s;
-	if(*k_ele%2==0) (*k_ele)++;
-	int k = *k_ele;	
-	int k_half = k/2;
+	(*trace).push_back(initial);	
 
-	vector<float> K(k,0);
+	int step = 0;
+	while(step < n)
+	{	
+		new_pos.x = initial.x + del_t * (Evec[init].a);
+		new_pos.y = initial.y + del_t * (Evec[init].b);
+		new_pos.z = initial.z + del_t * (Evec[init].c);
 
-	float sum = 0;		
-	for(int i=-k_half; i<=k_half; i++)		
-	{
-		K[i+k_half]=coeff*exp(-(((i-mu)*(i-mu))/(2*s*s)));	
-//		cout << "k["<<i+k_half<<"]	:" << K[i+k_half]<<endl;
-		sum += K[i+k_half];			
+		if( (new_pos.x < width) && (new_pos.y < height) && (new_pos.z < depth) && (new_pos.x >= 0) && (new_pos.y >= 0) && (new_pos.z >= 0) && \
+		    (initial.x < width) && (initial.y < height) && (initial.z < depth) && (initial.x >= 0) && (initial.y >= 0) && (initial.z >= 0) 	)
+		{
+
+			init   = ((int)initial.z * width * height) + ((int)initial.y * width) + ((int)initial.x);
+			int new_p  = ((int)new_pos.z * width * height) + ((int)new_pos.y * width) + ((int)new_pos.x);
+
+			float dot_p = (Evec[new_p].a * Evec[init].a) + (Evec[new_p].b * Evec[init].b) + (Evec[new_p].c * Evec[init].c);
+	//		cout << "\n dot product of step: " << step << "is " << dot_p;
+			if(dot_p < 0)
+			{
+				new_pos.x = initial.x + del_t * (-Evec[init].a);
+				new_pos.y = initial.y + del_t * (-Evec[init].b);
+				new_pos.z = initial.z + del_t * (-Evec[init].c);
+			}
+
+			(*trace).push_back(new_pos);
+		//	cout << new_pos.x << " " << new_pos.y << " " << new_pos.z << endl;
+			initial.x = new_pos.x;
+			initial.y = new_pos.y;
+			initial.z = new_pos.z;
+
+			step++;
+
+		}
+		else break;
 	}
-	
-//	cout << "Sum is 	: " << sum << endl;
-//	cout << "-----------------------" << endl;  
-//	cout << "Normalized K" << endl;  
-//	cout << "-----------------------" << endl;  
-
-	float sum2 = 0;
-	for (int i=-k_half; i<=k_half; i++)
-	{
-		K[i+k_half]/=sum;
-//		cout << "k["<<i+k_half<<"]	:" << K[i+k_half]<<endl;
-		sum2+=K[i+k_half];				
-	}
-//	cout << "Sum is 	: " << sum2 << endl;
-
-	return K;
-
+	return;
 }
 
+void write_trace(vector<position> trace, int index)
+{
+	string filename = "./Trace/trace_" + to_string(index) + ".bin";
+	ofstream trace_w(filename.c_str(), ios::binary);
+	
+	trace_w.write( (char *) &trace[0], (trace.size()) * 3 * sizeof(float));
+	trace_w.close();	
+}
 
 int main()
 {
@@ -109,7 +122,7 @@ int main()
 		throw runtime_error(ss.str());
 	}
 
-	for(int i = 0; i < glob_result.gl_pathc; i++)
+	for(unsigned int i = 0; i < glob_result.gl_pathc; i++)
 	{
 		filenames.push_back(string(glob_result.gl_pathv[i]));
 	}
@@ -170,7 +183,7 @@ int main()
 
 	vector<float> dx(size,0);
 
-	for(int i = 0 ; i < size; i++)
+	for(unsigned int i = 0 ; i < size; i++)
 	{
 		if(i % width == 0) dx[i] = (pixel[i+1] - pixel[i])/h;
 		else if(i % width == width-1) dx[i] = (pixel[i] - pixel[i-1])/h;
@@ -180,19 +193,18 @@ int main()
 /*********************** partial derivate along y direction *************************/
 
 	vector<float> dy(size,0);
-	int row;
-	for(int i = 0; i < size; i++)
+	for(unsigned int i = 0; i < size; i++)
 	{	
-		row = i/width;
-		if(row % height == 0) dy[i] = (pixel[width+i] - pixel[i])/h;
-		else if(row % height == height - 1) dy[i] = (pixel[i] - pixel[i-width])/h;
+		int r = i/width;
+		if(r % height == 0) dy[i] = (pixel[width+i] - pixel[i])/h;
+		else if(r % height == height - 1) dy[i] = (pixel[i] - pixel[i-width])/h;
 		else dy[i] = (pixel[i+width] - pixel[i-width])/(2*h);
 	}
 
 /*********************** partial derivate along z direction *************************/
 	
 	vector<float> dz(size,0);
-	for(int i = 0; i < size; i++)
+	for(unsigned int i = 0; i < size; i++)
 	{
 		if(i < height*width) dz[i] = (pixel[i + (width*height)] - pixel[i])/h2;
 		else if(i >= (size - (height*width))) dz[i] = (pixel[i] - pixel[i - (width*height)])/h2;
@@ -248,7 +260,7 @@ int main()
 	matrix init = {0,0,0,0,0,0,0,0,0};
 	vector<matrix> T(size,init);
 //	cout << "Size of T vector	: " << T.size() << endl;
-	for (int i = 0; i < size; i++)
+	for (unsigned int i = 0; i < size; i++)
 	{
 		T[i].a1 = dx[i] * dx[i];
 		T[i].a2 = dx[i] * dy[i];
@@ -268,13 +280,13 @@ int main()
 
 	cout << "time taken to calculate Tensor field		: " << time.count()*1000 << " ms" << endl;
 
-	ofstream file_a1("tensor_field_a1.txt");
+/*	ofstream file_a1("tensor_field_a1.txt");
 	for(int i = 0; i < T.size(); i++)
 	{
 		file_a1 << T[i].a1 << " ";
 	}
 	file_a1.close();	
-/*
+
 	ofstream file_4("tensor_field_a2.txt");
 	for(int i = 5*511*511; i < 6*511*511; i++)
 	{
@@ -472,14 +484,14 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to apply blur along x axis		: " << time.count()*1000 << " ms" << endl;
-
+/*
 	ofstream file_T_x("T_x.txt");
 	for(int i = 0; i < T_x.size(); i++)
 	{
 		file_T_x << T_x[i].a1 << " ";
 	}
 	file_T_x.close();
-
+*/
 	T_pad.clear();
 
 // Apply the filter along Y axis
@@ -523,14 +535,14 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to apply blur along y axis		: " << time.count()*1000 << " ms" << endl;
-
+/*
 	ofstream file_T_y("T_y.txt");
 	for(int i = 0; i < T_y.size(); i++)
 	{
 		file_T_y << T_y[i].a1 << " ";
 	}
 	file_T_y.close();
-
+*/
 	T_x.clear();
 
 // Apply the filter along Z axis
@@ -575,14 +587,14 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to apply blur along z axis		: " << time.count()*1000 << " ms" << endl;
-
+/*
 	ofstream file_T_z("T_z.txt");
 	for(int i = 0; i < T_z.size(); i++)
 	{
 		file_T_z << T_z[i].a1 << " ";
 	}
 	file_T_z.close();
-
+*/
 	T_y.clear();
 
 // Remove the padding
@@ -627,18 +639,18 @@ int main()
 
 //	SelfAdjointEigenSolver<Matrix3f> handle;
 
-	start = chrono::high_resolution_clock::now();
+	double omp_start = omp_get_wtime();
 	#pragma omp parallel for
-	for (int ii = 0; ii < Evec.size(); ii++)	
+	for (unsigned int ii = 0; ii < Evec.size(); ii++)	
 	{
 		SelfAdjointEigenSolver<Matrix3f> handle;
 		handle.computeDirect(T_m[ii]);
 		Eigen::Vector3f::Map(&Evec[ii].a) = handle.eigenvectors().col(0);
 	}
-	stop = chrono::high_resolution_clock::now();
-	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
+	double omp_stop = omp_get_wtime();
+	double omp_time = omp_stop - omp_start;
 
-	cout << "time taken to calculate eigen vector		: " << time.count()*1000 << " ms" << endl;
+	cout << "time taken to calculate eigen vector		: " << omp_time << " s" << endl;
 
 /*
 	ofstream Evec_file("Evec_vectors");
@@ -665,11 +677,10 @@ int main()
 	T_m.clear();
 
 // Create a color Image
-
+/*
 	vector <float> 		l     		(width * height * depth, 0);
 	vector <pixels>		nv    		(width * height * depth	  );
 	vector <float> 	 	alpha 		(width * height * depth, 0);
-//	vector <pixels_2>	f_image    	(width * height * depth	  );
 
 	start = chrono::high_resolution_clock::now();
 	for(int i = 0; i < l.size(); i++)
@@ -681,7 +692,6 @@ int main()
 		nv[i].b = Evec[i].c / l[i];
 		
 		alpha[i] = pixel[i] / 255.0f;
-//		alpha[i] = pixel[i];
 		
 		nv[i].r = (abs(nv[i].r * alpha[i]));
 		nv[i].g = (abs(nv[i].g * alpha[i]));
@@ -691,11 +701,56 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to compute colour image		: " << time.count()*1000 << " ms" << endl;
-
+	
+	l.clear();
+	alpha.clear();
+	pixel.clear();
+*/
 // write a color image. I will import this file to python and visualize using matplotlib::imshow()
-
+/*
 	ofstream img_file("img.txt");
 	for(auto &i : nv)
 		img_file << i.r << " " << i.g << " " << i.b << " "; 
+*/
+// Apply Euler's method of integration
+
+//	vector< vector<position> > trace(width*height*depth);
+	vector< position > trace;
+
+	float del_t = 0.1;	
+	int n_steps = 1000;
+	
+	omp_start = omp_get_wtime();
+
+
+
+	#pragma omp parallel for private(index, trace) collapse(3)
+	for(int aisle = 0; aisle < depth; aisle++)
+	{
+		for(int row = 0; row < height; row++)
+		{
+			for(int col = 0; col < width; col++)
+			{
+				trace.clear();
+				index = (aisle * width * height) + (row * width) + col;
+				eulers_method(&trace, Evec, col, row, aisle, width, height, depth, del_t, n_steps);
+				write_trace(trace, index);
+	//			for(auto &i:trace)
+	//				cout << i.x << " " << i.y << " " << i.z << endl;
+			}
+		}
+	}	
+	omp_stop = omp_get_wtime();
+	omp_time = (omp_stop - omp_start);
+
+	cout << "time taken to do cryptography and writing it	: " << omp_time << " s" << endl;
+
+//	nv.clear();
+	trace.clear();
+
+	ofstream Evec_w("Evec.bin", ios::binary);
+	Evec_w.write((char *) &Evec[0].a, size * 3 * sizeof(float));
+	Evec_w.close();
+
 	return 0;
 }
