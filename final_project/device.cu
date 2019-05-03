@@ -31,7 +31,7 @@ void partial_derv_gpu(float *dx, float *dy, float *dz, int *pixel, int h, int h2
 }
 
 __global__
-void tensor(matrix *T, float *dx, float *dy, float *dz, int size)
+void tensor_gpu(matrix *T, float *dx, float *dy, float *dz, int size)
 {
 	int idx = threadIdx.x + blockIdx.x * blockDim.x;
 

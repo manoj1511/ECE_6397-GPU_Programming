@@ -28,13 +28,6 @@ static void HandleError( cudaError_t err, const char *file,  int line ) {			// e
 
 using namespace cimg_library;
 
-struct matrix
-{
-	float a1, a2, a3;
-	float b1, b2, b3;
-	float c1, c2, c3;
-};
-
 int main()
 {
 
@@ -139,10 +132,10 @@ int main()
 	pix_w.write((char *) &pixel[0], size * sizeof(int));
 	pix_w.close();
 
-	vector<matrix> T(size, 0);
+	vector<matrix> T(size, {0,0,0,0,0,0,0,0,0});
 	matrix *T_gpu;
 
-	HANDLE_ERROR(cudaMalloc((void**) &T_gpu, size * sizeof(matix)));
+	HANDLE_ERROR(cudaMalloc((void**) &T_gpu, size * sizeof(matrix)));
 
 	cudaEventRecord(begin);
 	tensor(T_gpu, dx_gpu, dy_gpu, dz_gpu, size);								// dx, dy, dz already resides in gpu memory.
