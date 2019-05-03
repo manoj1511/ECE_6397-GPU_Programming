@@ -731,8 +731,15 @@ int main()
 		{
 			for(int col = 0; col < width; col++)
 			{
-				trace.clear();
 				index = (aisle * width * height) + (row * width) + col;
+				int tid=omp_get_thread_num();
+        			if(tid==0 && index < 100)
+				{
+            				int nthreads=omp_get_num_threads();
+            				cout << "Number of threads = %d\n" << nthreads << endl;
+        			}
+				trace.clear();
+
 				eulers_method(&trace, Evec, col, row, aisle, width, height, depth, del_t, n_steps);
 				write_trace(trace, index);
 	//			for(auto &i:trace)
