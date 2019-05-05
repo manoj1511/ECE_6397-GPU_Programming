@@ -102,7 +102,7 @@ void write_trace(vector<position> trace, int index)
 	string filename = "./Trace/trace_" + to_string(index) + ".bin";
 	ofstream trace_w(filename.c_str(), ios::binary);
 	
-	trace_w.write( (char *) &trace[0], (trace.size()) * 3 * sizeof(float));
+	trace_w.write( (char *) &trace[0].x, (trace.size()) * 3 * sizeof(float));
 	trace_w.close();	
 }
 
@@ -110,7 +110,7 @@ int main()
 {
 
 	vector<string> filenames;
-	string pattern = "./kidney_100/test_00*.jpg";
+	string pattern = "./kidney_100/test_*.jpg";
 	glob_t glob_result;
 	memset(&glob_result, 0, sizeof(glob_result));
 	int return_value = glob(pattern.c_str(), GLOB_TILDE, NULL, &glob_result);
@@ -359,7 +359,7 @@ int main()
                                         T_pad[index].b3 = T[local_index].b3;
                                         T_pad[index].c3 = T[local_index].c3;
                                 }
-                                else if(col < half)
+				else if(col < half)
                                 {
                                         local_col = (half - col);
                                         local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
@@ -438,6 +438,10 @@ int main()
 	time = chrono::duration_cast< chrono::duration<double> >(stop - start);
 
 	cout << "time taken to apply Padding			: " << time.count()*1000 << " ms" << endl;
+
+	ofstream T_pad_w("T_pad_cpu", ios::binary);
+	T_pad_w.write((char *) &T_pad[0].a1, T_pad.size() * sizeof(matrix));	
+	T_pad_w.clear();
 
 	T.clear();
 
@@ -637,7 +641,6 @@ int main()
 	eigen_vectors eigen_init = {0,0,0};
 	vector<eigen_vectors>Evec(width * height * depth, eigen_init);
 
-//	SelfAdjointEigenSolver<Matrix3f> handle;
 
 	double omp_start = omp_get_wtime();
 	#pragma omp parallel for
@@ -717,33 +720,29 @@ int main()
 //	vector< vector<position> > trace(width*height*depth);
 	vector< position > trace;
 
-	float del_t = 0.1;	
-	int n_steps = 1000;
+	float del_t = 0.2;	
+	int n_steps = 10000;
 	
 	omp_start = omp_get_wtime();
 
-
-
 	#pragma omp parallel for private(index, trace) collapse(3)
-	for(int aisle = 0; aisle < depth; aisle++)
+	for(int aisle = 0; aisle < depth; aisle += 20)
 	{
-		for(int row = 0; row < height; row++)
+		for(int row = 0; row < 511; row+= 100)
 		{
-			for(int col = 0; col < width; col++)
+			for(int col = 0; col < 511; col+=100)
 			{
-				index = (aisle * width * height) + (row * width) + col;
+				index = ((aisle) * 511 * 511) + ((row) * 511) + (col);
 				int tid=omp_get_thread_num();
-        			if(tid==0 && index < 100)
+        			if(tid==0 && index < 1)
 				{
             				int nthreads=omp_get_num_threads();
-            				cout << "Number of threads = %d\n" << nthreads << endl;
+            				cout << "Number of threads = " << nthreads << endl;
         			}
 				trace.clear();
 
 				eulers_method(&trace, Evec, col, row, aisle, width, height, depth, del_t, n_steps);
 				write_trace(trace, index);
-	//			for(auto &i:trace)
-	//				cout << i.x << " " << i.y << " " << i.z << endl;
 			}
 		}
 	}	
