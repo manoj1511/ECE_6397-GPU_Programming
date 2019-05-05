@@ -56,13 +56,14 @@ void eulers_method(vector<position> *trace, vector<eigen_vectors> Evec,int col, 
 	position initial = {(float) col, (float) row, (float) aisle};
 	position new_pos = {0.0f, 0.0f, 0.0f};
 
-	int init   = (int) initial.z * width * height + (int) initial.y * width + (int) initial.x;
+	int init;
 
 	(*trace).push_back(initial);	
 
 	int step = 0;
 	while(step < n)
 	{	
+		init   = ((int)initial.z * width * height) + ((int)initial.y * width) + ((int)initial.x);
 		new_pos.x = initial.x + del_t * (Evec[init].a);
 		new_pos.y = initial.y + del_t * (Evec[init].b);
 		new_pos.z = initial.z + del_t * (Evec[init].c);
@@ -70,8 +71,6 @@ void eulers_method(vector<position> *trace, vector<eigen_vectors> Evec,int col, 
 		if( (new_pos.x < width) && (new_pos.y < height) && (new_pos.z < depth) && (new_pos.x >= 0) && (new_pos.y >= 0) && (new_pos.z >= 0) && \
 		    (initial.x < width) && (initial.y < height) && (initial.z < depth) && (initial.x >= 0) && (initial.y >= 0) && (initial.z >= 0) 	)
 		{
-
-			init   = ((int)initial.z * width * height) + ((int)initial.y * width) + ((int)initial.x);
 			int new_p  = ((int)new_pos.z * width * height) + ((int)new_pos.y * width) + ((int)new_pos.x);
 
 			float dot_p = (Evec[new_p].a * Evec[init].a) + (Evec[new_p].b * Evec[init].b) + (Evec[new_p].c * Evec[init].c);
