@@ -185,7 +185,7 @@ int main()
 	for(unsigned int i = 0 ; i < size; i++)
 	{
 		if(i % width == 0) dx[i] = (pixel[i+1] - pixel[i])/h;
-		else if(i % width == width-1) dx[i] = (pixel[i] - pixel[i-1])/h;
+		else if(i % width == (unsigned int)(width-1)) dx[i] = (pixel[i] - pixel[i-1])/h;
 		else dx[i] = (pixel[i+1] - pixel[i-1])/(2*h);
 	}	
 
@@ -205,7 +205,7 @@ int main()
 	vector<float> dz(size,0);
 	for(unsigned int i = 0; i < size; i++)
 	{
-		if(i < height*width) dz[i] = (pixel[i + (width*height)] - pixel[i])/h2;
+		if(i < (unsigned int)(height*width)) dz[i] = (pixel[i + (width*height)] - pixel[i])/h2;
 		else if(i >= (size - (height*width))) dz[i] = (pixel[i] - pixel[i - (width*height)])/h2;
 		else dz[i] = (pixel[i + (width*height)] - pixel[i - (width*height)])/(2*h2);
 	}
@@ -315,13 +315,11 @@ int main()
 
 // PADDING THE TENSOR FIELD FOR BLURRING
 //
-	int filter_size = 32;
-        if(filter_size % 2 == 0) filter_size++;
+	int filter_size = 16;
         int half = filter_size / 2;
 
 
-	int filter_size_z = 7;
-        if(filter_size_z % 2 == 0) filter_size_z++;
+	int filter_size_z = 4;
         int half_z = filter_size_z / 2;
 
 
@@ -358,78 +356,15 @@ int main()
                                         T_pad[index].b3 = T[local_index].b3;
                                         T_pad[index].c3 = T[local_index].c3;
                                 }
-				else if(col < half)
-                                {
-                                        local_col = (half - col);
-                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                  
-                                        T_pad[index].a1 = T[local_index].a1;
-                                        T_pad[index].a2 = T[local_index].a2;
-                                        T_pad[index].a3 = T[local_index].a3;
-                                        T_pad[index].b2 = T[local_index].b2;
-                                        T_pad[index].b3 = T[local_index].b3;
-                                        T_pad[index].c3 = T[local_index].c3;
-                                }
-                                else if(row < half)
-                                {
-                                        local_row = (half - row);
-                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                 
-                                        T_pad[index].a1 = T[local_index].a1;
-                                        T_pad[index].a2 = T[local_index].a2;
-                                        T_pad[index].a3 = T[local_index].a3;
-                                        T_pad[index].b2 = T[local_index].b2;
-                                        T_pad[index].b3 = T[local_index].b3;
-                                        T_pad[index].c3 = T[local_index].c3; 
-                                }
-                                else if(col >= width - half)
-                                {
-                                        local_col = ((width - half - 1) - (col - (width - half - 1))) - half;
-                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                 
-                                        T_pad[index].a1 = T[local_index].a1;
-                                        T_pad[index].a2 = T[local_index].a2;
-                                        T_pad[index].a3 = T[local_index].a3;
-                                        T_pad[index].b2 = T[local_index].b2;
-                                        T_pad[index].b3 = T[local_index].b3;
-                                        T_pad[index].c3 = T[local_index].c3;  
-                                }
-                                else if(row >= height - half)
-                                {
-                                        local_row = (height - half - 1) - (row - (height - half - 1)) - half;
-                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                 
-                                        T_pad[index].a1 = T[local_index].a1;
-                                        T_pad[index].a2 = T[local_index].a2;
-                                        T_pad[index].a3 = T[local_index].a3;
-                                        T_pad[index].b2 = T[local_index].b2;
-                                        T_pad[index].b3 = T[local_index].b3;
-                                        T_pad[index].c3 = T[local_index].c3;
-                                }
-				else if(aisle < half_z)
-                                {
-                                        local_aisle = (half_z - aisle);
-                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                 
-                                        T_pad[index].a1 = T[local_index].a1;
-                                        T_pad[index].a2 = T[local_index].a2;
-                                        T_pad[index].a3 = T[local_index].a3;
-                                        T_pad[index].b2 = T[local_index].b2;
-                                        T_pad[index].b3 = T[local_index].b3;
-                                        T_pad[index].c3 = T[local_index].c3; 
-                                }
-                                else if(aisle >= depth - half_z)
-                                {
-                                        local_aisle = (depth - half_z - 1) - (aisle - (depth - half_z - 1)) - half_z;
-                                        local_index = (local_aisle * local_width * local_height) + (local_row * local_width) + local_col;
-                                 
-                                        T_pad[index].a1 = T[local_index].a1;
-                                        T_pad[index].a2 = T[local_index].a2;
-                                        T_pad[index].a3 = T[local_index].a3;
-                                        T_pad[index].b2 = T[local_index].b2;
-                                        T_pad[index].b3 = T[local_index].b3;
-                                        T_pad[index].c3 = T[local_index].c3;  
-                                }
+				else
+				{
+                                        T_pad[index].a1 = 0;
+                                        T_pad[index].a2 = 0;
+                                        T_pad[index].a3 = 0;
+                                        T_pad[index].b2 = 0;
+                                        T_pad[index].b3 = 0;
+                                        T_pad[index].c3 = 0;
+				}
                         }
                 }
         }
@@ -716,22 +651,21 @@ int main()
 */
 // Apply Euler's method of integration
 
-//	vector< vector<position> > trace(width*height*depth);
 	vector< position > trace;
 
 	float del_t = 0.2;	
-	int n_steps = 10000;
+	int n_steps = 100000;
 	
 	omp_start = omp_get_wtime();
 
 	#pragma omp parallel for private(index, trace) collapse(3)
-	for(int aisle = 0; aisle < depth; aisle += 20)
+	for(int aisle = 0; aisle < 5; aisle++)
 	{
-		for(int row = 0; row < 511; row+= 100)
+		for(int row = 0; row < 5; row++)
 		{
-			for(int col = 0; col < 511; col+=100)
+			for(int col = 0; col < 5; col++)
 			{
-				index = ((aisle) * 511 * 511) + ((row) * 511) + (col);
+				index = ((aisle) * height * width) + ((row) * height) + (col);
 				int tid=omp_get_thread_num();
         			if(tid==0 && index < 1)
 				{
@@ -739,7 +673,6 @@ int main()
             				cout << "Number of threads = " << nthreads << endl;
         			}
 				trace.clear();
-
 				eulers_method(&trace, Evec, col, row, aisle, width, height, depth, del_t, n_steps);
 				write_trace(trace, index);
 			}
