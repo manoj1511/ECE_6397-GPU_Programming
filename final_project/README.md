@@ -40,4 +40,4 @@ All the requirements are present in Bridges.
    To run GPU code
    
    ```$ ./gpu```
-4. You can copy the data from Trace back to your CPU and visualize using the provided python code.
+4. You can copy the data from Trace back to your CPU and visualize using the provided python code ```display_trace.py```.
