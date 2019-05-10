@@ -17,18 +17,26 @@ All the requirements are present in Bridges.
 1. $ module load cuda
 2. $ module load eigen
 3. To compile cpu version run
+   
    $ make cpu
+   
    To compile gpu version run
+   
    $ make gpu
 
 ## Running
 1. create an empty folder caled Trace in your working directory so that cpu version can write the trace files in it.
 2. Get an interactive gpu node.(Recommended)
+   
    $ interact -gpu
+   
    You can run both cpu and gpu coode here. Slurm will allocate a single Nvidia P100 GPU node. The GPU node also comes with 
    haswell cpu with 16 cores.
 3. To run CPU code
+   
    $ ./cpu
+   
    To run GPU code
+   
    $ ./gpu
-4. You can copy the data from Trace back to your CPU and visualize using the provided python code. 
+4. You can copy the data from Trace back to your CPU and visualize using the provided python code.
