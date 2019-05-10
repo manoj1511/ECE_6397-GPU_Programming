@@ -16,7 +16,7 @@ Please use the make file attached to compile the code.
 
 All the requirements are present in Bridges.
 
-### Procudure
+### Procedure
 1. ```$ module load cuda```
 2. ```$ module load eigen```
 3. To compile cpu version run
