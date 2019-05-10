@@ -4,6 +4,8 @@ All instructions are specific to the bridges supercomputer housed at the Pittsbu
 
 Bridges User Guide -> https://www.psc.edu/bridges/user-guide
 
+For the algorithm and profiling details, refer to *Docs/Report.pdf*.
+
 ## Compiling
 Please use the make file attached to compile the code.
 
